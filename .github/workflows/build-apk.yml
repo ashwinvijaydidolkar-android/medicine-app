@@ -1,9 +1,13 @@
 name: Build Ragini APK
 
 # Runs on every push, and can be started by hand from the Actions tab ("Run workflow").
+# Each successful build is published under Releases as Ragini-MedicineReminder.apk.
 on:
   push:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   apk:
@@ -23,7 +27,8 @@ jobs:
       - name: Build installable APK
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleRelease
+          set -o pipefail
+          ./gradlew --no-daemon assembleRelease 2>&1 | tee build.log
 
       - name: Rename
         run: cp app/build/outputs/apk/release/app-release.apk Ragini-MedicineReminder.apk
@@ -32,3 +37,21 @@ jobs:
         with:
           name: Ragini-MedicineReminder-APK
           path: Ragini-MedicineReminder.apk
+
+      - name: Publish the APK under Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: Ragini APK (build ${{ github.run_number }})
+          body: Install Ragini-MedicineReminder.apk on the phone. Allow "Install unknown apps" when Android asks.
+          files: Ragini-MedicineReminder.apk
+          make_latest: true
+
+      - name: Publish the build log if something went wrong
+        if: failure()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-log-${{ github.run_number }}
+          name: Build log ${{ github.run_number }} (failed)
+          prerelease: true
+          files: build.log
