@@ -10,7 +10,8 @@ Works on **Android 6.0 (Marshmallow) and every newer version**, on any phone bra
 
 ### Reminders that cannot be missed
 - **Starts 19 minutes before** each medicine and speaks **every 2 minutes**: at 19, 17, 15, 13, 11, 9, 7, 5, 3 and 1 minute before.
-- **At medicine time it does not stop until every medicine is answered.** The chosen tune plays, then the voice reads each medicine **one by one** ("Number 1: Metformin, 500 mg, with food. Number 2: …"). Tune and voice repeat, reading only the medicines still left, until each one has been tapped **Taken** (or *Not taken* with a reason). There is no other way to silence a due medicine. A safety limit (30 minutes by default; 10 minutes to 2 hours) stops a phone left in a drawer from ringing all night.
+- **At medicine time it does not stop until every medicine is answered.** The chosen tune plays, then the voice reads each medicine **one by one** ("Number 1: Metformin, 500 mg, with food. Number 2: …"). Tune and voice repeat, reading only the medicines still left, until each one has been tapped **Taken** (or *Not taken* with a reason). There is no other way to silence a due medicine, and **there is no time limit**: the phone stays awake and keeps ringing until the last medicine is answered.
+- **Each medicine is its own spoken message.** The opening line, every medicine, and the closing line are spoken separately with short pauses, so even a list of 30 medicines is never cut off. The music always finishes before the voice starts, so names are never covered by the tune.
 - **Clear, loud words.** The message is always the plain sentence "It is time to take your medicine(s)", followed by each name, dose and food rule. Speech is kept to a clear pitch and an unhurried speed. The words are rendered to audio first and played through Android's loudness enhancer, which has a built-in limiter, so they are louder than normal text-to-speech without distorting.
 - Both numbers can be changed: the start time for each medicine separately, and the gap for all medicines (Settings → Reminder rhythm).
 - **Fully automatic.** Nobody has to press anything to hear a reminder.
@@ -41,10 +42,11 @@ Works on **Android 6.0 (Marshmallow) and every newer version**, on any phone bra
 - **Share** the report with one tap (WhatsApp, SMS, email) to family or the doctor
 - *Overnight* covers 8 PM yesterday to 8 AM today. Today's doses show as "live" until the day closes.
 
-### 100 melodious reminder tunes
-- **10 ragas × 10 instruments.** The ragas are Bhupali, Yaman, Bhairav, Kafi, Durga, Malkauns, Hamsadhwani, Khamaj, Bilawal and Shivranjani. The instruments are santoor, bansuri flute, sitar, harp, music box, celesta, marimba, kalimba, vibraphone and soft piano.
-- Every melody is an original phrase composed for Ragini. Each one is synthesised on the phone using real-instrument techniques: plucked strings, struck bars and bells, a breathy bansuri with vibrato, a soft tanpura drone under the Indian instruments, and a little hall reverb. Each phrase ends on a resolving chord. No audio files are needed.
-- Tap any tune in **Voices → Reminder tune** (or Settings) and it plays straight away. All 100 can also be heard in the online preview.
+### 200 melodious reminder tunes
+- **20 ragas × 10 instruments.** The first hundred, improved: Bhupali, Yaman, Bhairav, Kafi, Durga, Malkauns, Hamsadhwani, Khamaj, Bilawal and Shivranjani. One hundred new: Desh, Bageshri, Bihag, Charukeshi, Hindol, Kirwani, Madhuvanti, Jog, Abhogi and Revati. The instruments are santoor, bansuri flute, sitar, harp, music box, celesta, marimba, kalimba, vibraphone and soft piano.
+- **Composed in two phrases:** one that "asks" and one that "answers" back home to Sa, shaped to swell like a sung line. The bansuri adds kan (grace) notes.
+- **Gentle accompaniment underneath:** a softly plucked tanpura for the Indian instruments, and a soft pad, bass and broken chords for the others. Plucked strings are tuned to within 2 cents (0.02 of a semitone).
+- All 200 are synthesised on the phone, with no audio files. Tap any tune in **Voices → Reminder tune** (or Settings) and it plays straight away.
 
 ### 108 voices, plus the family's own
 - **12 languages × 9 personalities = 108 voices**: English (India, US, UK, Australia), Hindi, Marathi, Gujarati, Bengali, Tamil, Telugu, Kannada, Malayalam. The personalities are Gentle Dawn, Sunny Cheer, Monsoon Calm, Doctor's Desk, Temple Bell, Raga Melody, Little Grandchild, Wise Elder and Quick Nudge. Each has its own pitch, speed, wording and chime (wind chimes, marimba, bansuri flute, temple bell, sitar…). There are no play buttons: tapping a voice selects it and plays it straight away.
@@ -115,7 +117,7 @@ app/src/main/java/com/ragini/medreminder/
 ├── schedule/   AlarmScheduler (setAlarmClock), Doses (the 19/17/…/1 rhythm), DayCloser (end-of-day attendance),
 │               Answers, Boot/Alarm receivers
 ├── voice/      VoiceCatalog (108 voices), Phrases (12 languages, one-by-one), Speaker (loud TTS on the alarm channel),
-│               TuneSynth (the 100 tunes), Chimes (tune playback), VoiceRecorder (family voice)
+│               TuneSynth (the 200 tunes), Chimes (tune playback), VoiceRecorder (family voice)
 ├── report/     Reports (8 periods, attendance, streaks, share text)
 ├── data/       Db (SQLite), Prefs, Models
 └── ui/         Today (day dial), Medicines, Editor, Voices, Reports, Settings, Onboarding, theme

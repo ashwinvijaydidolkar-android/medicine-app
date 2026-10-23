@@ -3,6 +3,7 @@ package com.ragini.medreminder.voice
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.exp
+import kotlin.math.floor
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sin
@@ -10,13 +11,18 @@ import kotlin.math.tanh
 import kotlin.random.Random
 
 /**
- * 100 reminder tunes = 10 ragas × 10 instruments.
+ * 200 reminder tunes = 20 ragas × 10 instruments.
+ *   Tunes   0–99 : the first ten ragas (Bhupali … Shivranjani)
+ *   Tunes 100–199: ten more ragas (Desh … Revati)
  *
- * Every melody is an original phrase written in a classical raga (ragas are scales and
- * moods, free for anyone to use). Each tune is synthesised on the phone – no audio files –
- * with real-instrument techniques: plucked strings (Karplus–Strong), struck bars and bells
- * (additive partials), a breathy bansuri with vibrato, a soft tanpura drone underneath the
- * Indian instruments, and a small concert-hall reverb so it sounds warm, not electronic.
+ * Every tune is an original two-part melody written in a classical raga: a first phrase that
+ * "asks" (it ends away from home) and a second phrase that "answers" and comes back to Sa.
+ * Under the melody there is a quiet accompaniment layer – a plucked tanpura for the Indian
+ * instruments, and a soft pad, bass and broken chords for the others – plus a little hall
+ * reverb. Everything is synthesised on the phone; no audio files are needed.
+ *
+ * The music always plays on its own: the voice speaks only after the tune has finished,
+ * so medicine names are never covered by music.
  *
  * Pure Kotlin – no Android classes – so it can be tested anywhere.
  */
@@ -36,53 +42,100 @@ object TuneSynth {
         PIANO("Soft piano", 67, false)
     }
 
-    /** [notes] = (scale degree, beats). Degree 0 is Sa; degrees wrap into higher/lower octaves. */
+    /**
+     * A raga with its two melodic phrases. Notes are written "degree beats", where degree 0 is Sa,
+     * degrees wrap into the octave above (e.g. 5 in a five-note scale) or below (-1).
+     * [hasPa] = false for ragas without Pa; their drone and chords use Ma instead.
+     */
     class Raga(
         val name: String,
         val mood: String,
         val scale: IntArray,
         val beat: Double,
         val shift: Int,
-        val notes: List<Pair<Int, Double>>
-    )
+        val hasPa: Boolean,
+        phraseA: String,
+        phraseB: String
+    ) {
+        val a: List<Pair<Int, Double>> = parse(phraseA)
+        val b: List<Pair<Int, Double>> = parse(phraseB)
+
+        private fun parse(s: String): List<Pair<Int, Double>> = s.split(',').map { tok ->
+            val (d, len) = tok.trim().split(' ').filter { it.isNotBlank() }
+            d.toInt() to len.toDouble()
+        }
+    }
 
     class Tune(val id: Int, val raga: Raga, val instrument: Instrument) {
         val title: String get() = "${raga.name} · ${instrument.title}"
+        val isNew: Boolean get() = id >= 100
     }
 
-    private fun n(vararg p: Pair<Int, Double>) = p.toList()
+    private val S5 = intArrayOf(0, 2, 4, 7, 9)
 
     val ragas: List<Raga> = listOf(
-        Raga("Bhupali", "Bright, peaceful evening", intArrayOf(0, 2, 4, 7, 9), 0.34, 0, n(
-            0 to .5, 1 to .5, 2 to .5, 3 to .5, 4 to 1.0, 5 to 1.5,
-            4 to .5, 3 to .5, 2 to .5, 3 to .5, 2 to .5, 1 to .5, 0 to 2.0)),
-        Raga("Yaman", "Graceful and serene", intArrayOf(0, 2, 4, 6, 7, 9, 11), 0.36, 2, n(
-            -1 to .5, 1 to .5, 2 to .5, 3 to .5, 4 to 1.0, 6 to .5, 5 to .5,
-            4 to 1.0, 3 to .5, 2 to .5, 1 to .5, 0 to 2.0)),
-        Raga("Bhairav", "Devotional morning", intArrayOf(0, 1, 4, 5, 7, 8, 11), 0.42, -1, n(
-            0 to .5, 1 to .75, 2 to .5, 3 to .5, 4 to 1.0, 5 to .75,
-            4 to .5, 3 to .5, 2 to .5, 1 to .75, 0 to 2.0)),
-        Raga("Kafi", "Folk-like and joyful", intArrayOf(0, 2, 3, 5, 7, 9, 10), 0.32, 1, n(
-            0 to .5, 2 to .5, 3 to .5, 4 to 1.0, 5 to .5, 6 to .5, 7 to 1.0,
-            6 to .5, 4 to .5, 3 to .5, 2 to .5, 1 to .5, 0 to 2.0)),
-        Raga("Durga", "Cheerful and light", intArrayOf(0, 2, 5, 7, 9), 0.33, 3, n(
-            0 to .5, 1 to .5, 2 to .5, 3 to 1.0, 4 to .5, 5 to 1.0,
-            4 to .5, 3 to .5, 2 to .5, 1 to .5, 0 to 2.0)),
-        Raga("Malkauns", "Deep and meditative", intArrayOf(0, 3, 5, 8, 10), 0.42, -2, n(
-            0 to .75, 1 to .5, 2 to .75, 3 to .5, 4 to .5, 5 to 1.25,
-            4 to .5, 3 to .5, 2 to .5, 1 to .5, 0 to 2.0)),
-        Raga("Hamsadhwani", "Auspicious, like a temple festival", intArrayOf(0, 2, 4, 7, 11), 0.31, 0, n(
-            0 to .5, 1 to .5, 2 to .5, 3 to .5, 4 to .5, 5 to 1.5,
-            3 to .5, 4 to .5, 2 to .5, 3 to .5, 1 to .5, 0 to 2.0)),
-        Raga("Khamaj", "Romantic and tender", intArrayOf(0, 2, 4, 5, 7, 9, 10), 0.35, 4, n(
-            2 to .5, 3 to .5, 4 to .5, 5 to .5, 6 to 1.0, 5 to .5, 4 to .5,
-            3 to .5, 2 to 1.0, 1 to .5, 0 to 2.0)),
-        Raga("Bilawal", "Fresh, like sunrise", intArrayOf(0, 2, 4, 5, 7, 9, 11), 0.33, 5, n(
-            0 to .5, 2 to .5, 4 to .5, 7 to 1.0, 6 to .5, 5 to .5,
-            4 to .5, 3 to .5, 2 to .5, 1 to .5, 0 to 2.0)),
-        Raga("Shivranjani", "Soulful and gentle", intArrayOf(0, 2, 3, 7, 9), 0.38, -3, n(
-            0 to .5, 1 to .5, 2 to 1.0, 3 to .5, 4 to .5, 5 to 1.0,
-            4 to .5, 3 to .5, 2 to .75, 1 to .5, 0 to 2.0))
+        // ---- the first hundred (improved) ----
+        Raga("Bhupali", "Bright, peaceful evening", S5, 0.34, 0, true,
+            "0 .5,1 .5,2 .5,3 .5,4 1,3 .5,2 .5,3 .5,4 .5,5 1.5,4 .5,3 1",
+            "5 .5,4 .5,3 .5,4 .5,2 1,1 .5,2 .5,3 .5,2 .5,1 .5,0 .5,1 .5,-1 .5,0 2"),
+        Raga("Yaman", "Graceful and serene", intArrayOf(0, 2, 4, 6, 7, 9, 11), 0.34, 2, true,
+            "-1 .5,1 .5,2 1,3 .5,4 .5,2 1,3 .5,4 .5,5 .5,4 .5,3 .5,2 .5,1 1",
+            "4 .5,5 .5,6 .5,7 1.5,6 .5,5 .5,4 1,3 .5,2 .5,1 .5,2 .5,-1 .5,1 .5,0 2"),
+        Raga("Bhairav", "Devotional morning", intArrayOf(0, 1, 4, 5, 7, 8, 11), 0.40, -1, true,
+            "0 .5,1 1,2 .5,3 .5,4 1,5 1,4 .5,3 .5,4 1.5",
+            "5 .5,6 .5,7 1,6 .5,5 1,4 .5,3 .5,2 .5,1 1,0 2"),
+        Raga("Kafi", "Folk-like and joyful", intArrayOf(0, 2, 3, 5, 7, 9, 10), 0.31, 1, true,
+            "0 .5,2 .5,3 .5,4 .5,3 .5,2 .5,1 1,2 .5,3 .5,4 1,6 .5,5 .5,4 1",
+            "4 .5,5 .5,6 .5,7 1,6 .5,5 .5,4 .5,3 .5,2 .5,1 .5,2 .5,1 .5,0 2"),
+        Raga("Durga", "Cheerful and light", intArrayOf(0, 2, 5, 7, 9), 0.32, 3, true,
+            "0 .5,1 .5,2 1,3 .5,4 .5,3 .5,2 .5,1 1,2 .5,3 .5,4 1.5",
+            "5 1,4 .5,3 .5,4 .5,3 .5,2 1,1 .5,2 .5,1 .5,-1 .5,0 2"),
+        Raga("Malkauns", "Deep and meditative", intArrayOf(0, 3, 5, 8, 10), 0.40, -2, false,
+            "0 .75,1 .25,2 .5,1 .5,2 1,3 .5,4 .5,3 1,2 1",
+            "3 .5,4 .5,5 1,4 .5,3 .5,2 .5,1 .5,2 1,1 .5,-1 .5,0 2"),
+        Raga("Hamsadhwani", "Auspicious, like a temple festival", intArrayOf(0, 2, 4, 7, 11), 0.30, 0, true,
+            "0 .5,1 .5,2 .5,3 .5,4 .5,5 1,4 .5,3 1,2 .5,3 .5,4 1",
+            "5 .5,6 .5,5 .5,4 .5,3 1,2 .5,3 .5,1 .5,2 .5,0 .5,-1 .5,0 2"),
+        Raga("Khamaj", "Romantic and tender", intArrayOf(0, 2, 4, 5, 7, 9, 10), 0.34, 4, true,
+            "2 .5,3 .5,4 .5,5 .5,6 1,5 .5,4 .5,3 .5,2 .5,3 1,4 1",
+            "7 .5,6 .5,5 .5,4 .5,3 .5,2 .5,3 .5,4 .5,2 1,1 .5,-2 .5,0 2"),
+        Raga("Bilawal", "Fresh, like sunrise", intArrayOf(0, 2, 4, 5, 7, 9, 11), 0.32, 5, true,
+            "0 .5,2 .5,4 .5,5 .5,4 1,3 .5,2 .5,3 .5,4 .5,5 .5,6 .5,7 1.5",
+            "6 .5,5 .5,4 .5,3 .5,2 1,4 .5,3 .5,1 .5,2 .5,-1 .5,0 2"),
+        Raga("Shivranjani", "Soulful and gentle", intArrayOf(0, 2, 3, 7, 9), 0.37, -3, true,
+            "0 .5,1 .5,2 1,1 .5,0 .5,1 1,2 .5,3 .5,4 1.5",
+            "5 .75,4 .25,3 .5,4 .5,3 .5,2 1,1 .5,2 .5,1 .5,-1 .5,0 2"),
+        // ---- one hundred new tunes ----
+        Raga("Desh", "Monsoon joy", intArrayOf(0, 2, 5, 7, 11), 0.33, 2, true,
+            "0 .5,1 .5,2 .5,3 1,4 .5,5 1,4 .5,3 .5,2 .5,1 1",
+            "3 .5,4 .5,5 .5,6 1,5 .5,4 .5,3 .5,2 .5,1 .5,0 .5,1 .5,0 2"),
+        Raga("Bageshri", "Night-time longing, very gentle", intArrayOf(0, 2, 3, 5, 9, 10), 0.38, 0, false,
+            "-1 .5,0 .5,2 .5,3 1,4 .5,5 .5,4 1,3 .5,2 .5,3 1",
+            "4 .5,5 .5,6 1,5 .5,4 .5,3 .5,2 .5,1 .5,2 .5,0 2"),
+        Raga("Bihag", "Sweet and romantic", intArrayOf(0, 4, 5, 7, 11), 0.33, 1, true,
+            "0 .5,1 .5,2 .5,3 1,4 .5,5 1,4 .5,3 .5,4 .5,2 .5,3 1",
+            "5 .5,6 .5,5 .5,4 .5,3 1,2 .5,1 .5,2 .5,-1 .5,0 2"),
+        Raga("Charukeshi", "Tender and touching", intArrayOf(0, 2, 4, 5, 7, 8, 10), 0.35, -1, true,
+            "0 .5,1 .5,2 .5,3 .5,4 1,5 .5,4 .5,3 .5,2 .5,1 1",
+            "4 .5,5 .5,6 .5,7 1,6 .5,5 .5,4 .5,3 .5,2 .5,1 .5,0 2"),
+        Raga("Hindol", "Spring morning swing", intArrayOf(0, 4, 6, 9, 11), 0.36, 3, false,
+            "0 1,1 .5,2 .5,3 1,2 .5,3 .5,4 .5,5 1.5",
+            "4 .5,3 .5,2 1,1 .5,2 .5,3 .5,1 .5,0 2"),
+        Raga("Kirwani", "Heartfelt, like a lullaby", intArrayOf(0, 2, 3, 5, 7, 8, 11), 0.36, 0, true,
+            "0 .5,1 .5,2 .5,3 .5,4 1,5 .5,6 .5,7 1,6 .5,5 .5,4 1",
+            "5 .5,4 .5,3 .5,2 .5,3 .5,2 .5,1 .5,-1 .5,0 2"),
+        Raga("Madhuvanti", "Honey-sweet afternoon", intArrayOf(0, 2, 3, 6, 7, 9, 11), 0.35, 2, true,
+            "-1 .5,1 .5,2 1,3 .5,4 1,6 .5,5 .5,4 1,3 .5,2 1",
+            "4 .5,5 .5,6 .5,7 1,6 .5,4 .5,3 .5,2 .5,1 .5,-1 .5,0 2"),
+        Raga("Jog", "Warm and hopeful", intArrayOf(0, 3, 4, 5, 7, 10), 0.34, -2, true,
+            "0 .5,2 .5,3 .5,4 1,5 .5,6 1,5 .5,4 .5,3 .5,2 1",
+            "4 .5,5 .5,4 .5,3 .5,1 .5,2 .5,1 .5,0 .5,-1 .5,0 2"),
+        Raga("Abhogi", "Calm and devotional", intArrayOf(0, 2, 3, 5, 9), 0.37, 1, false,
+            "0 .5,1 .5,2 .5,3 .5,4 1,5 1,4 .5,3 .5,2 1",
+            "3 .5,4 .5,5 .5,6 1,5 .5,4 .5,3 .5,2 .5,1 .5,-1 .5,0 2"),
+        Raga("Revati", "Peaceful temple chant", intArrayOf(0, 1, 5, 7, 10), 0.38, 0, true,
+            "0 .5,1 .5,2 .5,3 1,4 .5,3 .5,2 .5,1 1",
+            "3 .5,4 .5,5 1,4 .5,3 .5,2 .5,1 .5,0 .5,-1 .5,0 2")
     )
 
     val all: List<Tune> = ragas.flatMapIndexed { ri, r ->
@@ -93,47 +146,85 @@ object TuneSynth {
 
     private fun semis(scale: IntArray, deg: Int): Int {
         val size = scale.size
-        val oct = deg.floorDiv(size)
-        val idx = deg.mod(size)
-        return scale[idx] + 12 * oct
+        return scale[deg.mod(size)] + 12 * deg.floorDiv(size)
     }
 
     private fun hz(midi: Double) = 440.0 * 2.0.pow((midi - 69.0) / 12.0)
+
+    // ------------------------------------------------------------------ rendering
 
     /** Renders the tune as mono samples between -1 and 1. */
     fun render(t: Tune): FloatArray {
         val r = t.raga
         val ins = t.instrument
-        val beats = r.notes.sumOf { it.second }
-        val tail = 2.4
-        val buf = FloatArray(((beats * r.beat + tail) * SR).toInt())
+        val notes = r.a + r.b
+        val beats = notes.sumOf { it.second }
+        val tail = 2.6
+        val total = beats * r.beat + tail
+        val melody = FloatArray((total * SR).toInt())
+        val accomp = FloatArray(melody.size)
         val root = ins.baseMidi + r.shift
+        val bStart = r.a.sumOf { it.second } * r.beat
+
+        // ---- melody, shaped like a sung phrase: it swells towards the middle of each phrase ----
         var time = 0.0
-        r.notes.forEachIndexed { i, (deg, b) ->
+        notes.forEachIndexed { i, (deg, b) ->
+            val inB = i >= r.a.size
+            val idx = if (inB) i - r.a.size else i
+            val len = if (inB) r.b.size else r.a.size
+            val arch = 0.78 + 0.22 * sin(PI * (idx + 0.5) / len)
+            val vel = (if (inB) 0.95 else 1.0) * arch * (if (b >= 1.0) 1.05 else 1.0)
+            val last = i == notes.lastIndex
             val dur = b * r.beat
-            val last = i == r.notes.lastIndex
-            val accent = if (i == 0 || last) 1.0 else 0.82 + 0.1 * ((i % 3) / 2.0)
-            play(buf, ins, time, hz(root + semis(r.scale, deg).toDouble()), dur, accent, last)
+            val f = hz(root + semis(r.scale, deg).toDouble())
+            // A tiny, steady human looseness in timing (never random from run to run).
+            val nudge = if (i == 0) 0.0 else ((i * 7919) % 13 - 6) * 0.0012
+            if (ins == Instrument.BANSURI && b >= 1.0 && !last) {
+                // Kan swar: a quick grace note from the next note above, typical of the bansuri.
+                val g = hz(root + semis(r.scale, deg + 1).toDouble())
+                flute(melody, time + nudge, g, 0.06, vel * 0.7)
+                flute(melody, time + nudge + 0.05, f, dur + 0.02, vel)
+            } else {
+                play(melody, ins, time + nudge, f, dur, vel, last)
+            }
             if (last && ins != Instrument.BANSURI) {
-                // A soft chord on the final Sa makes the phrase feel resolved and complete.
-                play(buf, ins, time + 0.03, hz(root + 7.0), dur, 0.32, true)
-                play(buf, ins, time + 0.06, hz(root + 12.0), dur, 0.26, true)
+                // A soft chord on the final Sa makes the melody feel resolved and complete.
+                play(melody, ins, time + 0.03, hz(root + (if (r.hasPa) 7.0 else 5.0)), dur, 0.3, true)
+                play(melody, ins, time + 0.06, hz(root + 12.0), dur, 0.24, true)
             }
             time += dur
         }
-        if (ins.indian) drone(buf, hz(root - 12.0), hz(root - 5.0))
-        reverb(buf, if (ins == Instrument.BANSURI) 0.34 else 0.27)
-        // Fade out and normalise.
-        val fade = (0.45 * SR).toInt()
+
+        // ---- accompaniment: quiet, low, and only ever Sa with Pa (or Ma), so it suits every raga ----
+        val fifth = if (r.hasPa) 7.0 else 5.0
+        if (ins.indian) {
+            tanpura(accomp, paLow = hz(root - 24.0 + fifth), sa = hz(root - 12.0), saLow = hz(root - 24.0), step = r.beat * 2, total = total)
+        } else {
+            pad(accomp, hz(root - 12.0), hz(root - 12.0 + fifth), 0.0, bStart + 0.3)
+            pad(accomp, hz(root - 12.0 + fifth), hz(root + 0.0), bStart, (time - bStart) + 1.8)
+            bass(accomp, hz(root - 24.0), 0.0)
+            bass(accomp, hz(root - 24.0 + fifth), bStart)
+            bass(accomp, hz(root - 24.0), time - r.b.last().second * r.beat)
+            if (ins == Instrument.HARP || ins == Instrument.PIANO) {
+                arpeggio(accomp, ins, root - 12.0, fifth, r.beat, time - r.b.last().second * r.beat)
+            }
+        }
+        val accompGain = if (ins.indian) 0.55f else 0.5f
+        for (k in melody.indices) melody[k] += accomp[k] * accompGain
+
+        reverb(melody, if (ins == Instrument.BANSURI) 0.34 else 0.28)
+
+        // Gentle fade out and normalise.
+        val fade = (0.5 * SR).toInt()
         for (k in 0 until fade) {
-            val j = buf.size - fade + k
-            if (j >= 0) buf[j] *= (1f - k.toFloat() / fade)
+            val j = melody.size - fade + k
+            if (j >= 0) melody[j] *= (1f - k.toFloat() / fade)
         }
         var peak = 1e-4f
-        for (v in buf) if (abs(v) > peak) peak = abs(v)
+        for (v in melody) if (abs(v) > peak) peak = abs(v)
         val g = 0.9f / peak
-        for (k in buf.indices) buf[k] *= g
-        return buf
+        for (k in melody.indices) melody[k] *= g
+        return melody
     }
 
     private fun play(buf: FloatArray, ins: Instrument, start: Double, f: Double, dur: Double, vel: Double, last: Boolean) {
@@ -171,12 +262,65 @@ object TuneSynth {
         }
     }
 
+    // ------------------------------------------------------------------ accompaniment
+
+    /** A real tanpura cycle: low Pa – Sa – Sa – low Sa, plucked softly over and over, with its buzzing jawari. */
+    private fun tanpura(buf: FloatArray, paLow: Double, sa: Double, saLow: Double, step: Double, total: Double) {
+        val cycle = listOf(paLow, sa, sa, saLow)
+        var t = 0.0
+        var k = 0
+        while (t < total - 1.2) {
+            // Darker and gentler than the sitar, so it stays a warm hum in the background.
+            pluck(buf, t, cycle[k % 4], 2.6, 0.3, 0.9993, jawari = true, brightness = 0.12, drive = 1.4)
+            t += step
+            k++
+        }
+    }
+
+    /** A soft sustained open chord, like strings far in the background. */
+    private fun pad(buf: FloatArray, f1: Double, f2: Double, start: Double, len: Double) {
+        if (len <= 0.1) return
+        val s0 = (start * SR).toInt().coerceAtLeast(0)
+        val n = (len * SR).toInt()
+        for (i in 0 until n) {
+            val j = s0 + i
+            if (j >= buf.size) break
+            val t = i.toDouble() / SR
+            val env = min(1.0, t / 0.6) * min(1.0, (len - t) / 0.6).coerceAtLeast(0.0)
+            val tt = (j).toDouble() / SR
+            val v = sin(2 * PI * f1 * tt) + 0.6 * sin(2 * PI * f2 * tt) +
+                0.35 * sin(2 * PI * f1 * 1.003 * tt) + 0.2 * sin(4 * PI * f1 * tt)
+            buf[j] += (0.07 * env * v).toFloat()
+        }
+    }
+
+    /** A round, low bass note under the start of each phrase. */
+    private fun bass(buf: FloatArray, f: Double, start: Double) {
+        additive(buf, start, f, 2.2, 1.3, listOf(1.0 to 1.0, 2.0 to 0.3, 3.0 to 0.08), 0.01, 0.75)
+    }
+
+    /** Quiet broken chords (Sa – Pa – Sa' – Pa), one note per beat, for harp and piano. */
+    private fun arpeggio(buf: FloatArray, ins: Instrument, rootMidi: Double, fifth: Double, beat: Double, until: Double) {
+        val pattern = listOf(0.0, fifth, 12.0, fifth)
+        var t = beat
+        var k = 0
+        while (t < until - beat * 0.5) {
+            val f = hz(rootMidi + pattern[k % 4])
+            if (ins == Instrument.HARP) pluck(buf, t, f, 1.4, 0.2, 0.998, jawari = false, brightness = 0.15)
+            else additive(buf, t, f, 1.2, 2.0, listOf(1.0 to 1.0, 2.0 to 0.3), 0.004, 0.2)
+            t += beat
+            k++
+        }
+    }
+
+    // ------------------------------------------------------------------ instruments
+
     /** Decaying note made of sine partials (bells, bars, tines, hammered strings). */
     private fun additive(
         buf: FloatArray, start: Double, f: Double, len: Double, decay: Double,
         partials: List<Pair<Double, Double>>, attack: Double, vel: Double, tremolo: Double = 0.0
     ) {
-        val s0 = (start * SR).toInt()
+        val s0 = (start * SR).toInt().coerceAtLeast(0)
         val n = (len * SR).toInt()
         val nyq = SR * 0.45
         for ((mult, amp) in partials) {
@@ -199,17 +343,19 @@ object TuneSynth {
 
     /** Bansuri: breathy, soft attack, gentle vibrato that blooms on long notes. */
     private fun flute(buf: FloatArray, start: Double, f: Double, len: Double, vel: Double) {
-        val s0 = (start * SR).toInt()
+        val s0 = (start * SR).toInt().coerceAtLeast(0)
         val n = (len * SR).toInt()
         val rnd = Random((f * 100).toInt())
         var noiseLp = 0.0
         var phase = 0.0
+        val attackTime = min(0.07, len * 0.4)
+        val releaseTime = min(0.12, len * 0.4)
         for (i in 0 until n) {
             val j = s0 + i
             if (j >= buf.size) break
             val t = i.toDouble() / SR
-            val attack = min(1.0, t / 0.07)
-            val release = min(1.0, (len - t) / 0.12).coerceAtLeast(0.0)
+            val attack = min(1.0, t / attackTime)
+            val release = min(1.0, (len - t) / releaseTime).coerceAtLeast(0.0)
             val vibDepth = if (t > 0.22) min(1.0, (t - 0.22) / 0.3) * 0.006 else 0.0
             val inst = f * (1.0 + vibDepth * sin(2 * PI * 5.2 * t))
             phase += 2 * PI * inst / SR
@@ -220,46 +366,50 @@ object TuneSynth {
         }
     }
 
-    /** Karplus–Strong plucked string; [jawari] adds the sitar's bright buzz. */
-    private fun pluck(buf: FloatArray, start: Double, f: Double, len: Double, vel: Double, damping: Double, jawari: Boolean) {
-        val soft = if (jawari) 0.5 else 0.22
-        val period = (SR / f).toInt().coerceAtLeast(2)
+    /**
+     * Karplus–Strong plucked string, exactly in tune (a fractional all-pass delay corrects the
+     * pitch of high notes). [jawari] adds the sitar's and tanpura's bright buzz.
+     */
+    private fun pluck(
+        buf: FloatArray, start: Double, f: Double, len: Double, vel: Double, damping: Double, jawari: Boolean,
+        brightness: Double = if (jawari) 0.5 else 0.22, drive: Double = 2.2
+    ) {
+        val soft = brightness
+        val loop = SR / f - 0.5                       // the averaging filter adds half a sample
+        var period = floor(loop).toInt()
+        var frac = loop - period
+        if (frac < 0.15) { period -= 1; frac += 1.0 }  // keeps the all-pass well behaved
+        period = period.coerceAtLeast(2)
+        val c = (1.0 - frac) / (1.0 + frac)
         val rnd = Random(f.toInt() * 7 + 3)
-        // A softened noise burst gives a rounder, more musical pluck.
-        val ring = DoubleArray(period)
+        val line = DoubleArray(period)
         var lp = 0.0
         for (k in 0 until period) {
             lp += soft * ((rnd.nextDouble() * 2 - 1) - lp)
-            ring[k] = lp
+            line[k] = lp
         }
-        val s0 = (start * SR).toInt()
+        val s0 = (start * SR).toInt().coerceAtLeast(0)
         val n = (len * SR).toInt()
         var idx = 0
+        var prev = 0.0
+        var apX = 0.0
+        var apY = 0.0
         for (i in 0 until n) {
             val j = s0 + i
             if (j >= buf.size) break
-            val cur = ring[idx]
-            val nxt = ring[(idx + 1) % period]
-            ring[idx] = damping * 0.5 * (cur + nxt)
+            val cur = line[idx]
+            val avg = damping * 0.5 * (cur + prev)
+            prev = cur
+            val ap = c * avg + apX - c * apY
+            apX = avg
+            apY = ap
+            line[idx] = ap
+            idx = (idx + 1) % period
             var out = cur
-            if (jawari) out = tanh(out * 2.2) * 0.6 + out * 0.4
+            if (jawari) out = tanh(out * drive) * 0.6 + out * 0.4
             val attack = min(1.0, i / (0.002 * SR))
             val fadeOut = min(1.0, (n - i).toDouble() / (0.05 * SR))
             buf[j] += ((if (jawari) 0.55 else 0.85) * vel * attack * fadeOut * out).toFloat()
-            idx = (idx + 1) % period
-        }
-    }
-
-    /** A quiet tanpura-like drone on Sa and Pa, slightly detuned so it gently breathes. */
-    private fun drone(buf: FloatArray, sa: Double, pa: Double) {
-        val n = buf.size
-        for (i in 0 until n) {
-            val t = i.toDouble() / SR
-            val env = min(1.0, t / 0.9) * min(1.0, (n - i).toDouble() / (0.8 * SR))
-            val v = 0.5 * (sin(2 * PI * sa * t) + 0.35 * sin(4 * PI * sa * t) + 0.12 * sin(6 * PI * sa * t)) +
-                0.32 * (sin(2 * PI * pa * t) + 0.3 * sin(4 * PI * pa * t)) +
-                0.25 * sin(2 * PI * (sa * 1.0015) * t)
-            buf[i] += (0.045 * env * v).toFloat()
         }
     }
 

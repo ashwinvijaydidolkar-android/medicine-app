@@ -65,18 +65,10 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("chimeOn", true)
         set(v) = sp.edit().putBoolean("chimeOn", v).apply()
 
-    /** Which of the 100 tunes plays before the voice (see TuneSynth). */
+    /** Which of the 200 tunes plays before the voice (see TuneSynth). */
     var tuneId: Int
         get() = sp.getInt("tuneId", 0)
-        set(v) = sp.edit().putInt("tuneId", v.coerceIn(0, 99)).apply()
-
-    /**
-     * At medicine time the tune and voice keep repeating until EVERY medicine of that time is
-     * answered. This is only a safety limit so a forgotten phone does not ring all night.
-     */
-    var ringLimitMinutes: Int
-        get() = sp.getInt("ringLimitMinutes", 30)
-        set(v) = sp.edit().putInt("ringLimitMinutes", v.coerceIn(5, 120)).apply()
+        set(v) = sp.edit().putInt("tuneId", v.coerceIn(0, 199)).apply()
 
     /** Makes the spoken words louder than normal text-to-speech (with a built-in limiter). */
     var loudBoost: Boolean

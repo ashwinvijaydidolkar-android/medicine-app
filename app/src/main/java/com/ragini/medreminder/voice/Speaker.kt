@@ -105,6 +105,19 @@ class Speaker(context: Context) {
      */
     suspend fun speak(text: String, persona: VoicePersona, loud: Boolean = false) {
         if (text.isBlank() || !awaitReady()) return
+        // Text-to-speech refuses anything longer than its limit (about 4000 letters). A message
+        // is normally one short sentence, but if one is ever longer it is split, never cut off.
+        val limit = (try { TextToSpeech.getMaxSpeechInputLength() } catch (e: Exception) { 4000 }) - 200
+        if (text.length > limit) {
+            var rest = text
+            while (rest.isNotEmpty()) {
+                var cut = if (rest.length <= limit) rest.length else rest.lastIndexOf(' ', limit).takeIf { it > 0 } ?: limit
+                speak(rest.substring(0, cut), persona, loud)
+                rest = rest.substring(cut).trimStart()
+                if (cut == 0) break
+            }
+            return
+        }
         apply(persona)
         if (loud && speakLoud(text)) return
         val id = UUID.randomUUID().toString()

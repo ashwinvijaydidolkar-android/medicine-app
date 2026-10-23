@@ -130,7 +130,7 @@ class AppModel(private val app: Context) {
         }
     }
 
-    /** Plays one of the 100 tunes once, on the alarm channel – the same way a reminder will sound. */
+    /** Plays one of the 200 tunes once, on the alarm channel – the same way a reminder will sound. */
     fun previewTune(id: Int) {
         val key = "tune-$id"
         if (speakingId == key) { stopPreview(); return }

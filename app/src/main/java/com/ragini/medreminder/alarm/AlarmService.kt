@@ -50,7 +50,8 @@ typealias RingItem = RingEvent
  *
  * At medicine time it plays the chosen tune and then reads out every medicine ONE BY ONE,
  * and keeps repeating – tune, then voice – until EVERY medicine of that time has been
- * answered on the reminder screen (Taken, or Not taken with a reason). Only then does it stop.
+ * answered on the reminder screen (Taken, or Not taken with a reason). Only then does it stop –
+ * there is no time limit.
  *
  * It runs as a foreground service so Android cannot pause it, holds a wake lock, turns the
  * ALARM volume to maximum (and puts it back afterwards), vibrates and can blink the torch –
@@ -235,7 +236,7 @@ class AlarmService : Service() {
         ringingTest.value = isTest
 
         val prefs = Prefs(this)
-        acquireWake(prefs.ringLimitMinutes)
+        acquireWake()
         boostVolume(prefs)
         requestFocus()
         if (prefs.vibrate) startVibration()
@@ -243,7 +244,6 @@ class AlarmService : Service() {
         openScreen(items, isTest)
 
         job = scope.launch {
-            val limit = System.currentTimeMillis() + prefs.ringLimitMinutes * 60_000L
             var round = 0
             while (isActive) {
                 if (isTest) {
@@ -255,7 +255,8 @@ class AlarmService : Service() {
                     if (open.isEmpty()) break                        // everything answered → stop
                     val urgent = open.any { it.kind != RingKind.PRE }
                     if (!urgent && round >= prefs.repeats) break     // early reminders: just a few times
-                    if (System.currentTimeMillis() >= limit) break   // safety limit
+                    // A due medicine has NO time limit: this repeats until every one is answered.
+                    acquireWake()                                    // keeps the phone awake for the next round
                     speakRound(open, prefs, round)
                 }
                 round++
@@ -280,9 +281,16 @@ class AlarmService : Service() {
         return VoiceCatalog.byId("en-IN-${p.mood.name.lowercase()}") ?: VoiceCatalog.fallback
     }
 
-    /** One round: the tune, then every open medicine read out one by one. */
+    /**
+     * One round: the tune on its own, a short silence, then the voice. Music and speech never
+     * overlap, so every medicine name is heard clearly. Each medicine is spoken as its own
+     * short message, so long lists are never cut off.
+     */
     private suspend fun speakRound(open: List<RingEvent>, prefs: Prefs, round: Int) {
-        if (prefs.chimeOn) Chimes.play(prefs.tuneId)
+        if (prefs.chimeOn) {
+            Chimes.play(prefs.tuneId)
+            delay(700)
+        }
         val groups = listOf(RingKind.FOLLOW, RingKind.DUE, RingKind.CARE_CHECK, RingKind.PRE).flatMap { k ->
             open.filter { it.kind == k }.groupBy { it.minutes }.values.toList()
         }
@@ -302,7 +310,11 @@ class AlarmService : Service() {
             }
             val kind = if (first.kind == RingKind.CARE_CHECK) RingKind.FOLLOW else first.kind
             val meds = group.map { it.dose.medicine }.distinctBy { it.id }
-            speaker.speak(Phrases.build(persona, kind, first.minutes, prefs.userName, meds), persona, loud = prefs.loudBoost)
+            for (part in Phrases.parts(persona, kind, first.minutes, prefs.userName, meds)) {
+                if (group.none { isOpen(it) }) break     // everything in this group was just answered
+                speaker.speak(part, persona, loud = prefs.loudBoost)
+                delay(350)
+            }
 
             if (round == 0 && kind == RingKind.DUE) {
                 val low = meds.filter { it.lowStock }
@@ -396,13 +408,14 @@ class AlarmService : Service() {
 
     // ------------------------------------------------------------------ hardware helpers
 
-    private fun acquireWake(limitMinutes: Int) {
+    /** Renewed every round, so the phone stays awake for as long as the reminder rings. */
+    private fun acquireWake() {
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         val wl = wakeLock ?: pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ragini:ring").also {
             it.setReferenceCounted(false)
             wakeLock = it
         }
-        wl.acquire((limitMinutes + 3) * 60_000L)
+        wl.acquire(10 * 60_000L)
     }
 
     private fun releaseWake() {

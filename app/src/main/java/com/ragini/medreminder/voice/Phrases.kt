@@ -148,60 +148,72 @@ object Phrases {
     private fun cap(s: String) = if (s.isEmpty()) s else s.substring(0, 1).uppercase() + s.substring(1)
 
     /**
+     * The whole reminder as ONE string – used for the written preview in the editor.
+     * The phone never speaks it in one go; it speaks [parts] one at a time.
+     */
+    fun build(persona: VoicePersona, kind: RingKind, minutes: Int, userName: String, meds: List<Medicine>): String =
+        parts(persona, kind, minutes, userName, meds).joinToString(" ")
+
+    /**
+     * The reminder split into short messages that are spoken separately:
+     * an opening line, then ONE message per medicine, then a closing line.
+     * Each message is short, so even a list of 30 medicines is never cut off.
+     *
      * @param minutes minutes before the dose (for the early reminders)
      * @param meds every medicine due at this moment – there is no limit on how many
      */
-    fun build(persona: VoicePersona, kind: RingKind, minutes: Int, userName: String, meds: List<Medicine>): String {
-        if (meds.isEmpty()) return ""
+    fun parts(persona: VoicePersona, kind: RingKind, minutes: Int, userName: String, meds: List<Medicine>): List<String> {
+        if (meds.isEmpty()) return emptyList()
         val name = userName.trim()
         val lang = persona.lang
-        val mood = persona.mood
-        return if (lang.isEnglish) english(kind, minutes, name, meds, mood) else indian(kind, minutes, name, meds, lang, mood)
+        val out = if (lang.isEnglish) english(kind, minutes, name, meds, persona.mood)
+        else indian(kind, minutes, name, meds, lang, persona.mood)
+        return out.map { it.trim() }.filter { it.isNotEmpty() }
     }
 
-    private fun english(kind: RingKind, minutes: Int, name: String, meds: List<Medicine>, mood: Mood): String {
+    private fun english(kind: RingKind, minutes: Int, name: String, meds: List<Medicine>, mood: Mood): List<String> {
         val p = if (name.isBlank()) "" else "$name, "
+        val n = meds.size
         if (kind == RingKind.PRE) {
-            val n = if (minutes == 1) "1 minute" else "$minutes minutes"
-            val list = meds.map { it.sayName.trim() }
-            val what = if (list.size == 1) list[0]
-            else "your ${list.size} medicines: " + list.dropLast(1).joinToString(", ") + " and " + list.last()
-            return cap("${p}a reminder. In $n, it will be time to take $what.")
+            val inN = if (minutes == 1) "1 minute" else "$minutes minutes"
+            if (n == 1) return listOf(cap("${p}a reminder. In $inN, it will be time to take ${meds[0].sayName.trim()}."))
+            return listOf(cap("${p}a reminder. In $inN, it will be time to take your $n medicines.")) +
+                meds.mapIndexed { i, m -> "Number ${i + 1}: ${m.sayName.trim()}." }
         }
-        val sb = StringBuilder()
-        if (kind == RingKind.FOLLOW) sb.append(cap("${p}you have not tapped Taken yet. ")) else sb.append(opener(mood))
+        val intro = StringBuilder()
+        if (kind == RingKind.FOLLOW) intro.append(cap("${p}you have not tapped Taken yet. ")) else intro.append(opener(mood))
         val who = if (kind == RingKind.FOLLOW) "" else p
-        if (meds.size == 1) {
-            sb.append(cap("${who}it is time to take your medicine. "))
-            sb.append("Please take ${item(meds[0], Lang.EN_IN)}, now. Then tap Taken.")
+        val closing = if (kind == RingKind.DUE) closer(mood).trim() else ""
+        return if (n == 1) {
+            intro.append(cap("${who}it is time to take your medicine."))
+            listOf(intro.toString(), "Please take ${item(meds[0], Lang.EN_IN)}, now.", "Then tap Taken. $closing")
         } else {
-            sb.append(cap("${who}it is time to take your medicines. "))
-            sb.append("You have ${meds.size} medicines to take now. ")
-            meds.forEachIndexed { i, m -> sb.append("Number ${i + 1}: ${item(m, Lang.EN_IN)}. ") }
-            sb.append("Please take each one, and tap Taken for each.")
+            intro.append(cap("${who}it is time to take your medicines. ")).append("You have $n medicines to take now.")
+            listOf(intro.toString()) +
+                meds.mapIndexed { i, m -> "Number ${i + 1} of $n: ${item(m, Lang.EN_IN)}." } +
+                listOf("Please take each one, and tap Taken for each. $closing")
         }
-        if (kind == RingKind.DUE) sb.append(closer(mood))
-        return sb.toString().trim()
     }
 
-    private fun indian(kind: RingKind, minutes: Int, name: String, meds: List<Medicine>, lang: Lang, mood: Mood): String {
+    private fun indian(kind: RingKind, minutes: Int, name: String, meds: List<Medicine>, lang: Lang, mood: Mood): List<String> {
         val l = indic.getValue(lang)
         val p = if (name.isBlank()) "" else "$name, "
         if (kind == RingKind.PRE) {
-            return l.pre.replace("{p}", p).replace("{n}", "$minutes").replace("{med}", meds.joinToString(", ") { it.sayName.trim() })
+            if (meds.size == 1) return listOf(l.pre.replace("{p}", p).replace("{n}", "$minutes").replace("{med}", meds[0].sayName.trim()))
+            return listOf(l.pre.replace("{p}", p).replace("{n}", "$minutes").replace("{med}", "${meds.size}")) +
+                meds.mapIndexed { i, m -> l.item.replace("{i}", "${i + 1}").replace("{med}", m.sayName.trim()) }
         }
-        val sb = StringBuilder()
-        if (kind == RingKind.FOLLOW) sb.append(l.notYet).append(' ')
-        else if (mood == Mood.DEVOTIONAL) sb.append(l.greet).append(' ')
-        if (meds.size == 1) {
-            sb.append(l.dueOne.replace("{p}", p).replace("{med}", item(meds[0], lang)))
+        val pre = StringBuilder()
+        if (kind == RingKind.FOLLOW) pre.append(l.notYet).append(' ')
+        else if (mood == Mood.DEVOTIONAL) pre.append(l.greet).append(' ')
+        val love = if (kind == RingKind.DUE && (mood == Mood.GENTLE || mood == Mood.GRANDCHILD)) l.love else ""
+        return if (meds.size == 1) {
+            listOf(pre.toString() + l.dueOne.replace("{p}", p).replace("{med}", item(meds[0], lang)), love)
         } else {
-            sb.append(l.dueMany.replace("{p}", p).replace("{n}", "${meds.size}")).append(' ')
-            meds.forEachIndexed { i, m -> sb.append(l.item.replace("{i}", "${i + 1}").replace("{med}", item(m, lang))).append(' ') }
-            sb.append(l.endMany)
+            listOf(pre.toString() + l.dueMany.replace("{p}", p).replace("{n}", "${meds.size}")) +
+                meds.mapIndexed { i, m -> l.item.replace("{i}", "${i + 1}").replace("{med}", item(m, lang)) } +
+                listOf("${l.endMany} $love")
         }
-        if (kind == RingKind.DUE && (mood == Mood.GENTLE || mood == Mood.GRANDCHILD)) sb.append(' ').append(l.love)
-        return sb.toString().trim()
     }
 
     /** What a voice says when it is tapped in the Voices list. */

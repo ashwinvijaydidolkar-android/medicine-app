@@ -93,7 +93,6 @@ fun SettingsScreen(model: AppModel, onClose: () -> Unit) {
     var gap by remember { mutableIntStateOf(p.gapMinutes) }
     var follow by remember { mutableIntStateOf(p.followUps) }
     var followGap by remember { mutableIntStateOf(p.followGapMinutes) }
-    var ringLimit by remember { mutableIntStateOf(p.ringLimitMinutes) }
     var loud by remember { mutableStateOf(p.loudBoost) }
     var tuneSheet by remember { mutableStateOf(false) }
     var maxVol by remember { mutableStateOf(p.forceMaxVolume) }
@@ -183,16 +182,9 @@ fun SettingsScreen(model: AppModel, onClose: () -> Unit) {
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        "At medicine time the tune and the voice repeat until every medicine is answered with Taken (or Not taken with a reason). Safety limit:",
+                        "At medicine time the tune and the voice repeat – with no time limit – until every medicine is answered with Taken (or Not taken with a reason).",
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(10, 20, 30, 60, 120).forEach { m ->
-                            ChoicePill(if (m < 60) "$m min" else "${m / 60} hour${if (m > 60) "s" else ""}", ringLimit == m, {
-                                ringLimit = m; p.ringLimitMinutes = m
-                            })
-                        }
-                    }
                     SettingStepper("Extra reminders after", "if there is still no answer", follow, 0..6, { "$it" }) {
                         follow = it; p.followUps = it; model.rhythmChanged()
                     }

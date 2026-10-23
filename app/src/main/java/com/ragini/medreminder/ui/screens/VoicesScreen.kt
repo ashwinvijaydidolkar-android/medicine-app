@@ -502,7 +502,7 @@ private fun PickRow(title: String, sub: String, color: Color, on: Boolean, playi
     }
 }
 
-// ---------------------------------------------------------------- the 100 tunes
+// ---------------------------------------------------------------- the 200 tunes
 
 private fun instrumentColor(i: TuneSynth.Instrument): Color = when (i) {
     TuneSynth.Instrument.SANTOOR -> Color(0xFFD9734A)
@@ -558,7 +558,7 @@ fun TunePickerSheet(model: AppModel, onDismiss: () -> Unit) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Choose a reminder tune", style = MaterialTheme.typography.headlineSmall)
                     Text(
-                        "10 ragas × 10 instruments. Tap a tune to choose it – it plays straight away.",
+                        "${TuneSynth.ragas.size} ragas × 10 instruments. Tap a tune to choose it – it plays straight away. Ragas marked ✦ are new.",
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -566,7 +566,7 @@ fun TunePickerSheet(model: AppModel, onDismiss: () -> Unit) {
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(TuneSynth.ragas.indices.toList()) { i ->
-                        ChoicePill(TuneSynth.ragas[i].name, raga == i, { raga = i })
+                        ChoicePill(TuneSynth.ragas[i].name + if (i >= 10) " ✦" else "", raga == i, { raga = i })
                     }
                 }
             }
