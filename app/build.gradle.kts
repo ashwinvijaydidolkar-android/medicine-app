@@ -12,8 +12,11 @@ android {
         applicationId = "com.ragini.medreminder"
         minSdk = 23          // Android 6.0 and every version after it
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1"
+        // Every GitHub build gets a higher number than the one before, so it always installs as an
+        // update over the previous version (same app, same signing key – medicines and history are kept).
+        val run = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()
+        versionCode = if (run != null) 100 + run else 2
+        versionName = if (run != null) "1.1.$run" else "1.1"
         vectorDrawables { useSupportLibrary = true }
     }
 

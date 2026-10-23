@@ -72,6 +72,12 @@ Works on **Android 6.0 (Marshmallow) and every newer version**, on any phone bra
 - The file carries the medicines, their times, schedules, food rules, stock and your times of day. Attendance history stays on the device where it happened.
 - The same file works in the **Windows app** (Medicines → *Save my list to a file* / *Load a list from a file*), so a list can move phone → PC and PC → phone.
 
+### Updating the app
+- Install a new Ragini APK over the one already on the phone. Medicines, times of day, settings and attendance history are kept, and reminders are set again straight after the update.
+- Every GitHub build gets a higher version number and the same signing key, so Android always accepts it as an update. Do not uninstall first: uninstalling deletes the medicines.
+- After the first update to this version, Ragini says once that your medicines are all still there and offers **Send my list to another phone**.
+- **Medicines → Move medicines to another device → Get the latest version** opens the download page.
+
 ### Made for older eyes and hands
 - Lexend typeface (designed for reading ease), extra-large text, and a text-size slider up to 150%
 - Every button is at least 64 dp tall; each "Taken" button on the reminder is 76 dp

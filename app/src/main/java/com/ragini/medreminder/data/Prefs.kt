@@ -111,6 +111,11 @@ class Prefs(context: Context) {
         get() = sp.getInt("themeMode", 0)
         set(v) = sp.edit().putInt("themeMode", v).apply()
 
+    /** Highest "what's new" message the user has already seen. */
+    var whatsNewSeen: Int
+        get() = sp.getInt("whatsNewSeen", 0)
+        set(v) = sp.edit().putInt("whatsNewSeen", v).apply()
+
     /** The user's own times of day ("name|startMinute" per line). Empty = the standard list. */
     var slots: String
         get() = sp.getString("slots", "") ?: ""

@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import com.ragini.medreminder.ui.AppModel
 import com.ragini.medreminder.ui.screens.EditorScreen
 import com.ragini.medreminder.ui.screens.ImportDialogs
+import com.ragini.medreminder.ui.screens.WhatsNewDialog
 import com.ragini.medreminder.ui.screens.MedicinesScreen
 import com.ragini.medreminder.ui.screens.OnboardingScreen
 import com.ragini.medreminder.ui.screens.ReportsScreen
@@ -69,6 +70,7 @@ class MainActivity : ComponentActivity() {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     if (model.onboarded) AppShell(model) else OnboardingScreen(model)
                     ImportDialogs(model)
+                    WhatsNewDialog(model)
                 }
               }
             }

@@ -89,6 +89,11 @@ class AppModel(private val app: Context) {
 
     /** A list opened from a file (or shared into the app), waiting for the user to choose Add or Replace. */
     var pendingImport by mutableStateOf<Transfer.Parsed?>(null)
+
+    /** After updating over an older version that already has medicines: say they are kept, offer to send them. */
+    var showWhatsNew by mutableStateOf(prefs.onboarded && prefs.whatsNewSeen < WHATS_NEW && db.medicines().isNotEmpty())
+        private set
+    fun whatsNewDone() { prefs.whatsNewSeen = WHATS_NEW; showWhatsNew = false }
     var importProblem by mutableStateOf<String?>(null)
 
     fun exportText(): String = Transfer.export(db.medicines(), slots)
@@ -136,6 +141,7 @@ class AppModel(private val app: Context) {
     }
 
     fun finishOnboarding() {
+        prefs.whatsNewSeen = WHATS_NEW
         prefs.onboarded = true
         onboarded = true
         AlarmScheduler.rescheduleAll(app)
@@ -212,3 +218,6 @@ class AppModel(private val app: Context) {
         scope.cancel()
     }
 }
+
+/** Raise this when an update brings something the user should be told about once. 2 = moving the list to another device. */
+const val WHATS_NEW = 2

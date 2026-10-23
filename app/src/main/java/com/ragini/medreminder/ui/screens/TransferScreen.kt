@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Send
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -63,19 +64,18 @@ fun MoveListCard(model: AppModel) {
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             BigButton("Send to another phone", onClick = {
-                runCatching {
-                    val uri = model.exportForSharing()
-                    val send = Intent(Intent.ACTION_SEND)
-                        .setType("application/json")
-                        .putExtra(Intent.EXTRA_STREAM, uri)
-                        .putExtra(Intent.EXTRA_SUBJECT, "My Ragini medicine list")
-                        .putExtra(Intent.EXTRA_TEXT, "My Ragini medicine list. On the other phone, open this file with Ragini.")
-                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    ctx.startActivity(Intent.createChooser(send, "Send medicine list"))
-                }.onFailure { note = "Sending did not work. Use \"Save as a file\" instead." }
+                if (!shareList(ctx, model)) note = "Sending did not work. Use \"Save as a file\" instead."
             }, icon = Icons.Rounded.Send, modifier = Modifier.fillMaxWidth())
             BigOutlinedButton("Save as a file", onClick = { save.launch(Transfer.fileName()) }, icon = Icons.Rounded.Save, modifier = Modifier.fillMaxWidth())
             BigOutlinedButton("Load a list from a file", onClick = { open.launch(Transfer.openTypes) }, icon = Icons.Rounded.FileOpen, modifier = Modifier.fillMaxWidth())
+            Text(
+                "Updating Ragini: install the new version over this one – your medicines and history are kept.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            BigOutlinedButton("Get the latest version", onClick = {
+                runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(LATEST_RELEASE_URL))) }
+                    .onFailure { note = "Open this page in a browser: $LATEST_RELEASE_URL" }
+            }, icon = Icons.Rounded.SystemUpdate, modifier = Modifier.fillMaxWidth())
             note?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary) }
         }
     }
@@ -155,6 +155,45 @@ fun ImportDialogs(model: AppModel) {
         }
     }
 }
+
+/** Shown once after updating: the medicines are all still here, and they can now go to another phone. */
+@Composable
+fun WhatsNewDialog(model: AppModel) {
+    val ctx = LocalContext.current
+    if (!model.showWhatsNew || model.pendingImport != null) return
+    val n = model.meds.size
+    Sheet(onDismiss = { model.whatsNewDone() }) {
+        Text("Ragini has been updated", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+        Text(
+            "All your $n ${if (n == 1) "medicine is" else "medicines are"} still here, with their times and your attendance history. Reminders are set.",
+            style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center
+        )
+        Text(
+            "New: you can send your whole medicine list to another phone or to the Windows app. On the other phone, open the file with Ragini.",
+            style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        BigButton("Send my list to another phone", onClick = {
+            model.whatsNewDone()
+            shareList(ctx, model)
+        }, icon = Icons.Rounded.Send, modifier = Modifier.fillMaxWidth())
+        BigOutlinedButton("Not now", onClick = { model.whatsNewDone() }, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+/** Opens the share sheet (WhatsApp, Bluetooth, e-mail, Drive …) with the medicine list file. */
+fun shareList(ctx: android.content.Context, model: AppModel): Boolean = runCatching {
+    val uri = model.exportForSharing()
+    val send = Intent(Intent.ACTION_SEND)
+        .setType("application/json")
+        .putExtra(Intent.EXTRA_STREAM, uri)
+        .putExtra(Intent.EXTRA_SUBJECT, "My Ragini medicine list")
+        .putExtra(Intent.EXTRA_TEXT, "My Ragini medicine list. On the other phone, open this file with Ragini.")
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    ctx.startActivity(Intent.createChooser(send, "Send medicine list").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+}.isSuccess
+
+/** Where new versions of the app are published. Installing one keeps all medicines and history. */
+const val LATEST_RELEASE_URL = "https://github.com/ashwinvijaydidolkar-android/medicine-app/releases/latest"
 
 @Composable
 private fun Sheet(onDismiss: () -> Unit, content: @Composable () -> Unit) {
