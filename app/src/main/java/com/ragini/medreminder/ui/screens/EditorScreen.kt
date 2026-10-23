@@ -596,12 +596,12 @@ private fun EntryEditor(
 }
 
 @Composable
-private fun TimeDialog(initial: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit) {
+internal fun TimeDialog(initial: Int, onDismiss: () -> Unit, title: String = "Medicine time", onPick: (Int) -> Unit) {
     val state = rememberTimePickerState(initialHour = initial / 60, initialMinute = initial % 60, is24Hour = false)
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(shape = RoundedCornerShape(32.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.padding(16.dp)) {
             Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Medicine time", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+                Text(title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(16.dp))
                 TimePicker(state = state)
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {

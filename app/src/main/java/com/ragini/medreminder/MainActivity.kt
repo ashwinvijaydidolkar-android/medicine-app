@@ -22,10 +22,6 @@ import androidx.compose.material.icons.rounded.RecordVoiceOver
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -45,6 +42,11 @@ import com.ragini.medreminder.ui.screens.ReportsScreen
 import com.ragini.medreminder.ui.screens.SettingsScreen
 import com.ragini.medreminder.ui.screens.TodayScreen
 import com.ragini.medreminder.ui.screens.VoicesScreen
+import com.ragini.medreminder.ui.components.DockTab
+import com.ragini.medreminder.ui.components.PraharDock
+import com.ragini.medreminder.ui.theme.LocalSlots
+import com.ragini.medreminder.ui.theme.Prahars
+import com.ragini.medreminder.ui.theme.Slots
 import com.ragini.medreminder.ui.theme.RaginiTheme
 import kotlinx.coroutines.delay
 
@@ -57,10 +59,15 @@ class MainActivity : ComponentActivity() {
         model = AppModel(applicationContext)
         model.refresh()
         setContent {
-            RaginiTheme(themeMode = model.themeMode, textScale = model.textScale) {
+            // The living sky: colours follow the current prahar (re-checked with every refresh).
+            val prahar = androidx.compose.runtime.remember(model.now / 60_000, model.sky) { Prahars.current(model.sky) }
+            val slots = androidx.compose.runtime.remember(model.slots) { Slots.build(model.slots) }
+            RaginiTheme(themeMode = model.themeMode, textScale = model.textScale, prahar = prahar) {
+              androidx.compose.runtime.CompositionLocalProvider(LocalSlots provides slots) {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     if (model.onboarded) AppShell(model) else OnboardingScreen(model)
                 }
+              }
             }
         }
     }
@@ -82,6 +89,8 @@ private enum class Tab(val label: String, val icon: ImageVector) {
     VOICES("Voices", Icons.Rounded.RecordVoiceOver),
     REPORTS("Reports", Icons.Rounded.BarChart)
 }
+
+private val dockTabs = Tab.entries.map { DockTab(it.label, it.icon) }
 
 /** Full-screen pages that sit on top of the tabs. editId: 0 = new medicine. */
 private sealed interface Overlay {
@@ -115,48 +124,31 @@ private fun AppShell(model: AppModel) {
         when (o) {
             is Overlay.Editor -> EditorScreen(model, o.editId, onClose = { overlay = Overlay.None })
             Overlay.Settings -> SettingsScreen(model, onClose = { overlay = Overlay.None })
-            Overlay.None -> Scaffold(
-                containerColor = MaterialTheme.colorScheme.background,
-                bottomBar = {
-                    NavigationBar(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        tonalElevation = 0.dp
-                    ) {
-                        Tab.entries.forEachIndexed { i, t ->
-                            NavigationBarItem(
-                                selected = i == tabIndex,
-                                onClick = { tabIndex = i },
-                                icon = { Icon(t.icon, null, Modifier.size(28.dp)) },
-                                label = { Text(t.label, style = MaterialTheme.typography.labelMedium) },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = MaterialTheme.colorScheme.onSecondary,
-                                    indicatorColor = MaterialTheme.colorScheme.secondary,
-                                    selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            )
-                        }
-                    }
+            Overlay.None -> Box(Modifier.fillMaxSize()) {
+                val onSettings = { overlay = Overlay.Settings }
+                when (tab) {
+                    Tab.TODAY -> TodayScreen(
+                        model,
+                        onAdd = { overlay = Overlay.Editor(0L) },
+                        onSettings = onSettings,
+                        onEdit = { overlay = Overlay.Editor(it) }
+                    )
+                    Tab.MEDICINES -> MedicinesScreen(
+                        model,
+                        onAdd = { overlay = Overlay.Editor(0L) },
+                        onEdit = { overlay = Overlay.Editor(it) },
+                        onSettings = onSettings
+                    )
+                    Tab.VOICES -> VoicesScreen(model, onSettings = onSettings)
+                    Tab.REPORTS -> ReportsScreen(model, onSettings = onSettings)
                 }
-            ) { pad ->
-                Box(Modifier.padding(pad)) {
-                    when (tab) {
-                        Tab.TODAY -> TodayScreen(
-                            model,
-                            onAdd = { overlay = Overlay.Editor(0L) },
-                            onSettings = { overlay = Overlay.Settings },
-                            onEdit = { overlay = Overlay.Editor(it) }
-                        )
-                        Tab.MEDICINES -> MedicinesScreen(
-                            model,
-                            onAdd = { overlay = Overlay.Editor(0L) },
-                            onEdit = { overlay = Overlay.Editor(it) }
-                        )
-                        Tab.VOICES -> VoicesScreen(model)
-                        Tab.REPORTS -> ReportsScreen(model)
-                    }
-                }
+                PraharDock(
+                    tabs = dockTabs,
+                    selected = tabIndex,
+                    onSelect = { tabIndex = it },
+                    onAdd = { overlay = Overlay.Editor(0L) },
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
             }
         }
     }

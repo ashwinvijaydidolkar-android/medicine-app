@@ -1,5 +1,8 @@
 package com.ragini.medreminder.ui.screens
 
+import com.ragini.medreminder.ui.components.SkyHeader
+import com.ragini.medreminder.ui.components.bleed
+import com.ragini.medreminder.ui.theme.LocalPrahar
 import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -83,7 +86,7 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 @Composable
-fun ReportsScreen(model: AppModel) {
+fun ReportsScreen(model: AppModel, onSettings: () -> Unit = {}) {
     val ctx = LocalContext.current
     var period by rememberSaveable { mutableStateOf(Period.WEEKLY) }
     val report by produceState<Report?>(null, period, model.version) {
@@ -100,18 +103,29 @@ fun ReportsScreen(model: AppModel) {
     }
 
     LazyColumn(
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 40.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 0.dp, bottom = 150.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Eyebrow(report?.rangeLabel ?: " ")
-                    Spacer(Modifier.height(4.dp))
-                    Text("Reports", style = MaterialTheme.typography.headlineLarge)
-                }
-                FilledTonalIconButton(onClick = share, modifier = Modifier.size(56.dp)) {
-                    Icon(Icons.Rounded.Share, "Share report", Modifier.size(26.dp))
+            val p = LocalPrahar.current
+            SkyHeader(
+                eyebrow = report?.rangeLabel ?: " ",
+                title = "Reports",
+                onSettings = onSettings,
+                modifier = Modifier.bleed(20.dp)
+            ) {
+                Spacer(Modifier.height(14.dp))
+                Row(
+                    Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(p.skyInk.copy(alpha = 0.16f))
+                        .clickable(onClick = share)
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Rounded.Share, null, tint = p.skyInk, modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Text("Share report", style = MaterialTheme.typography.labelLarge, color = p.skyInk)
                 }
             }
         }

@@ -56,6 +56,13 @@ Works on **Android 6.0 (Marshmallow) and every newer version**, on any phone bra
 
 > **About the voices:** the speech comes from the phone's own text-to-speech engine (Google Speech Services on most phones). Each of the 108 personalities picks a different installed voice where the phone has several for that language, then shapes it with its own pitch, speed, words and chime. How many truly *different-sounding* base voices there are depends on what is installed. Google's engine has several per language, and Indian languages may need a free one-time download (the app shows **Get** next to those). A language that isn't installed falls back to Indian English with the same personality, so a reminder is never silent.
 
+### A design that follows the day
+- **Your own times of day.** Settings → *My times of day*: name the parts of your day the way you think of them ("After breakfast", "Before lunch", "Bedtime") and choose when each starts. Each lasts until the next one starts. Today's medicines, the day wheel and the reminder screen all use these names. All names are in English. The standard list is Early morning (5 AM), Morning (8 AM), Afternoon (12 PM), Evening (5 PM), Night (8 PM) and Late night (11 PM).
+- **Living sky.** The colours change through the day: orange at dawn, blue at noon, rose at dusk, indigo at night. Settings → *Sky* can keep one colour instead.
+- **The day wheel.** Today opens on a round dial of the day, noon at the top, with one petal for each of your times of day. Every dose is a bead on the wheel; a sun or moon shows the time now. Below it, a string of beads fills as medicines are taken.
+- **A balanced bar.** Today · Medicines · the big **+** in the middle · Voices · Reports. Settings is the gear at the top.
+- **The reminder screen** wears the dark sky of the medicine's own time, with the time framed in an arch and one bead and one card per medicine.
+
 ### Made for older eyes and hands
 - Lexend typeface (designed for reading ease), extra-large text, and a text-size slider up to 150%
 - Every button is at least 64 dp tall; each "Taken" button on the reminder is 76 dp

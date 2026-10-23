@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -138,6 +139,9 @@ val Lexend = FontFamily(
     Font(R.font.lexend_bold, FontWeight.Bold)
 )
 
+/** Display face: Young Serif – warm, rounded and very legible at large sizes. */
+val YoungSerif = FontFamily(Font(R.font.young_serif, FontWeight.Normal))
+
 val Fraunces = FontFamily(
     Font(R.font.fraunces_regular, FontWeight.Normal),
     Font(R.font.fraunces_semibold, FontWeight.SemiBold),
@@ -146,11 +150,11 @@ val Fraunces = FontFamily(
 
 // Sizes are deliberately larger than Android's defaults – this app is read by older eyes.
 private val AppType = Typography(
-    displayLarge = TextStyle(fontFamily = Fraunces, fontWeight = FontWeight.SemiBold, fontSize = 60.sp, lineHeight = 64.sp),
-    displayMedium = TextStyle(fontFamily = Fraunces, fontWeight = FontWeight.SemiBold, fontSize = 46.sp, lineHeight = 52.sp),
-    displaySmall = TextStyle(fontFamily = Fraunces, fontWeight = FontWeight.SemiBold, fontSize = 36.sp, lineHeight = 42.sp),
-    headlineLarge = TextStyle(fontFamily = Fraunces, fontWeight = FontWeight.SemiBold, fontSize = 32.sp, lineHeight = 38.sp),
-    headlineMedium = TextStyle(fontFamily = Fraunces, fontWeight = FontWeight.SemiBold, fontSize = 28.sp, lineHeight = 34.sp),
+    displayLarge = TextStyle(fontFamily = YoungSerif, fontWeight = FontWeight.Normal, fontSize = 60.sp, lineHeight = 64.sp),
+    displayMedium = TextStyle(fontFamily = YoungSerif, fontWeight = FontWeight.Normal, fontSize = 46.sp, lineHeight = 52.sp),
+    displaySmall = TextStyle(fontFamily = YoungSerif, fontWeight = FontWeight.Normal, fontSize = 36.sp, lineHeight = 42.sp),
+    headlineLarge = TextStyle(fontFamily = YoungSerif, fontWeight = FontWeight.Normal, fontSize = 32.sp, lineHeight = 38.sp),
+    headlineMedium = TextStyle(fontFamily = YoungSerif, fontWeight = FontWeight.Normal, fontSize = 28.sp, lineHeight = 34.sp),
     headlineSmall = TextStyle(fontFamily = Lexend, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 30.sp),
     titleLarge = TextStyle(fontFamily = Lexend, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp),
     titleMedium = TextStyle(fontFamily = Lexend, fontWeight = FontWeight.Medium, fontSize = 19.sp, lineHeight = 25.sp),
@@ -173,12 +177,40 @@ private val AppShapes = Shapes(
 
 val LocalIsDark = staticCompositionLocalOf { false }
 
+/** Lays the prahar's colours over the base scheme. Text-safe shades are used where text sits. */
+private fun ColorScheme.wear(p: Prahar, dark: Boolean): ColorScheme =
+    if (dark) copy(
+        primary = p.glow,
+        onPrimary = p.deepA,
+        primaryContainer = p.accent.copy(alpha = 0.28f).compositeOver(Palette.NightCard),
+        onPrimaryContainer = Color.White,
+        secondary = p.glow,
+        onSecondary = p.deepA,
+        secondaryContainer = p.accent.copy(alpha = 0.22f).compositeOver(Palette.NightCard),
+        onSecondaryContainer = Color.White
+    ) else copy(
+        primary = p.ink,
+        onPrimary = Color.White,
+        primaryContainer = p.accent.copy(alpha = 0.16f).compositeOver(Palette.Ivory),
+        onPrimaryContainer = p.ink,
+        secondary = p.accent,
+        onSecondary = p.onAccent,
+        secondaryContainer = p.accent.copy(alpha = 0.14f).compositeOver(Color.White),
+        onSecondaryContainer = p.ink
+    )
+
 /**
  * @param themeMode 0 = follow the phone, 1 = light, 2 = dark
  * @param textScale extra text size on top of the phone's own setting
  */
 @Composable
-fun RaginiTheme(themeMode: Int = 0, textScale: Float = 1f, forceDark: Boolean = false, content: @Composable () -> Unit) {
+fun RaginiTheme(
+    themeMode: Int = 0,
+    textScale: Float = 1f,
+    forceDark: Boolean = false,
+    prahar: Prahar = Prahars.now(),
+    content: @Composable () -> Unit
+) {
     val dark = forceDark || when (themeMode) {
         1 -> false
         2 -> true
@@ -187,10 +219,11 @@ fun RaginiTheme(themeMode: Int = 0, textScale: Float = 1f, forceDark: Boolean = 
     val base = LocalDensity.current
     CompositionLocalProvider(
         LocalIsDark provides dark,
+        LocalPrahar provides prahar,
         LocalDensity provides Density(base.density, base.fontScale * textScale)
     ) {
         MaterialTheme(
-            colorScheme = if (dark) Dark else Light,
+            colorScheme = (if (dark) Dark else Light).wear(prahar, dark),
             typography = AppType,
             shapes = AppShapes,
             content = content

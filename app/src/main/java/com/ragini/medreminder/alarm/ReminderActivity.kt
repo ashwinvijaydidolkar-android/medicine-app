@@ -71,6 +71,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -89,7 +95,11 @@ import com.ragini.medreminder.ui.components.BigButton
 import com.ragini.medreminder.ui.components.BigOutlinedButton
 import com.ragini.medreminder.ui.components.PillIcon
 import com.ragini.medreminder.ui.theme.MedColors
-import com.ragini.medreminder.ui.theme.Palette
+import com.ragini.medreminder.ui.theme.LocalPrahar
+import com.ragini.medreminder.ui.theme.Prahars
+import com.ragini.medreminder.ui.theme.Slots
+import com.ragini.medreminder.ui.components.TurningMandala
+import com.ragini.medreminder.ui.components.jharokha
 import com.ragini.medreminder.ui.theme.RaginiTheme
 import com.ragini.medreminder.ui.theme.StatusColors
 import com.ragini.medreminder.voice.TuneSynth
@@ -192,24 +202,35 @@ class ReminderActivity : ComponentActivity() {
         // While a due medicine is unanswered, Back does nothing – it must be answered.
         BackHandler(enabled = !isTest && !allDone && dueNow && open.isNotEmpty()) { }
 
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Brush.verticalGradient(listOf(Color(0xFF0E0D22), Palette.Indigo, Color(0xFF3B2F6E))))
-        ) {
-            AnimatedContent(
-                targetState = when {
-                    isTest -> 0
-                    allDone -> 2
-                    else -> 1
-                },
-                transitionSpec = { fadeIn(tween(400)) togetherWith fadeOut(tween(250)) },
-                label = "stage"
-            ) { s ->
-                when (s) {
-                    0 -> TestScreen(prefs, ringingTest)
-                    1 -> Medicines(prefs, doses, answered, ringing.isNotEmpty(), dueNow)
-                    else -> Done(prefs)
+        // The reminder wears the deep sky of the medicine's own prahar – always dark, like an alarm.
+        val prahar = remember(doses) {
+            doses.firstOrNull()?.let { Prahars.at(it.minuteOfDay) } ?: Prahars.now()
+        }
+        CompositionLocalProvider(LocalPrahar provides prahar) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .drawBehind {
+                        drawRect(Brush.radialGradient(listOf(prahar.deepB, prahar.deepA), center = Offset(size.width / 2, 0f), radius = size.height * 0.95f))
+                    }
+            ) {
+                Box(Modifier.fillMaxWidth().height(440.dp)) {
+                    TurningMandala(760.dp, Color.White.copy(alpha = 0.10f), periodMs = 180_000)
+                }
+                AnimatedContent(
+                    targetState = when {
+                        isTest -> 0
+                        allDone -> 2
+                        else -> 1
+                    },
+                    transitionSpec = { fadeIn(tween(400)) togetherWith fadeOut(tween(250)) },
+                    label = "stage"
+                ) { s ->
+                    when (s) {
+                        0 -> TestScreen(prefs, ringingTest)
+                        1 -> Medicines(prefs, doses, answered, ringing.isNotEmpty(), dueNow)
+                        else -> Done(prefs)
+                    }
                 }
             }
         }
@@ -236,17 +257,36 @@ class ReminderActivity : ComponentActivity() {
         val voiceName = VoiceCatalog.byId(voiceId)?.name
             ?: prefs.recordedVoices.firstOrNull { it.id == voiceId }?.label
             ?: VoiceCatalog.fallback.name
+        val p = LocalPrahar.current
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(eyebrow, style = MaterialTheme.typography.labelLarge, color = Palette.Marigold, textAlign = TextAlign.Center)
-            Text(
-                if (first != null) minuteLabel(first.minuteOfDay) else "",
-                style = MaterialTheme.typography.displayLarge,
-                color = Color.White
-            )
+            Text(eyebrow, style = MaterialTheme.typography.labelLarge.copy(letterSpacing = 2.sp), color = p.glow, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(10.dp))
+            // The time sits inside a jharokha – the carved window of an Indian palace.
+            Box(
+                Modifier
+                    .widthIn(max = 340.dp)
+                    .fillMaxWidth(0.88f)
+                    .drawBehind { jharokha(p.glow.copy(alpha = 0.85f)) }
+                    .padding(start = 18.dp, end = 18.dp, top = 54.dp, bottom = 18.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        if (first != null) minuteLabel(first.minuteOfDay) else "",
+                        style = MaterialTheme.typography.displayMedium,
+                        color = Color.White, maxLines = 1, softWrap = false
+                    )
+                    Text(
+                        (first?.let { Slots.at(it.minuteOfDay, Slots.build(Slots.decode(prefs.slots))).name } ?: "").uppercase(),
+                        style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 1.5.sp),
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                }
+            }
             if (speaking) {
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    SoundBars(Palette.Marigold, small = true)
+                    SoundBars(p.glow, small = true)
                     Spacer(Modifier.width(10.dp))
                     Text(
                         "$voiceName is speaking · ${TuneSynth.byId(prefs.tuneId).title}",
@@ -258,6 +298,7 @@ class ReminderActivity : ComponentActivity() {
         }
     }
 
+    @OptIn(ExperimentalLayoutApi::class)
     @Composable
     private fun Medicines(
         prefs: Prefs,
@@ -285,27 +326,27 @@ class ReminderActivity : ComponentActivity() {
             }
 
             // Progress: one segment per medicine.
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 Text(
                     if (total == 1) "Your medicine" else "$total medicines – take them one by one",
                     style = MaterialTheme.typography.headlineMedium,
-                    color = Color.White
+                    color = Color.White, textAlign = TextAlign.Center
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                // One bead per medicine, filling as each is answered.
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(9.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     doses.forEach { d ->
                         val st = answered[d.key]
+                        val c = when (st) {
+                            DoseStatus.TAKEN -> StatusColors.TakenDark
+                            DoseStatus.NOT_TAKEN -> StatusColors.NotTakenDark
+                            else -> null
+                        }
                         Box(
                             Modifier
-                                .weight(1f)
-                                .height(8.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(
-                                    when (st) {
-                                        DoseStatus.TAKEN -> StatusColors.TakenDark
-                                        DoseStatus.NOT_TAKEN -> StatusColors.NotTakenDark
-                                        else -> Color.White.copy(alpha = 0.18f)
-                                    }
-                                )
+                                .size(18.dp)
+                                .clip(CircleShape)
+                                .background(c ?: Color.Transparent)
+                                .border(2.dp, c ?: Color.White.copy(alpha = 0.55f), CircleShape)
                         )
                     }
                 }
@@ -317,7 +358,8 @@ class ReminderActivity : ComponentActivity() {
                         else -> "All done!"
                     },
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.8f)
+                    color = Color.White.copy(alpha = 0.85f),
+                    textAlign = TextAlign.Center
                 )
             }
 
@@ -347,7 +389,7 @@ class ReminderActivity : ComponentActivity() {
                     text = "Call ${prefs.caregiverName.ifBlank { "family" }}",
                     onClick = { CaregiverAlert.callIntent(this@ReminderActivity)?.let { startActivity(it) } },
                     icon = Icons.Rounded.Call,
-                    color = Palette.Marigold,
+                    color = LocalPrahar.current.glow,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -374,15 +416,20 @@ class ReminderActivity : ComponentActivity() {
             Modifier
                 .fillMaxWidth()
                 .clip(shape)
-                .background(Color.White.copy(alpha = if (current == null) 0.10f else 0.05f))
-                .border(if (current == null) 2.dp else 1.dp, ringColor.copy(alpha = if (current == null) 0.9f else 0.5f), shape)
-                .padding(16.dp)
+                .background(Color.White.copy(alpha = if (current == null) 0.08f else 0.04f))
+                .border(1.dp, if (current == null) ringColor.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.14f), shape)
+                .drawBehind {
+                    // the colour rail on the left edge
+                    val inset = 22.dp.toPx()
+                    drawRoundRect(ringColor, topLeft = Offset(0f, inset), size = Size(4.dp.toPx(), size.height - inset * 2), cornerRadius = CornerRadius(4.dp.toPx()))
+                }
+                .padding(start = 20.dp, end = 16.dp, top = 16.dp, bottom = 16.dp)
                 .animateContentSize(),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    Modifier.size(40.dp).clip(CircleShape).background(ringColor),
+                    Modifier.size(48.dp).border(4.dp, Color.White.copy(alpha = 0.12f), CircleShape).padding(4.dp).clip(CircleShape).background(ringColor),
                     contentAlignment = Alignment.Center
                 ) {
                     if (current == null) {
@@ -396,8 +443,8 @@ class ReminderActivity : ComponentActivity() {
                 PillIcon(m.colorIndex, m.shape, size = 52.dp)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    if (total > 1) Text("Medicine $number of $total", style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.6f))
-                    Text(m.name, style = MaterialTheme.typography.headlineSmall, color = Color.White)
+                    if (total > 1) Text("MEDICINE $number OF $total", style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.5.sp), color = Color.White.copy(alpha = 0.62f))
+                    Text(m.name, style = MaterialTheme.typography.headlineMedium, color = Color.White)
                     val sub = listOf(m.dosage, m.food.takeIf { it != FoodRule.NONE }?.label ?: "").filter { it.isNotBlank() }.joinToString(" · ")
                     if (sub.isNotBlank()) Text(sub, style = MaterialTheme.typography.titleMedium, color = Color.White.copy(alpha = 0.75f))
                 }
@@ -489,17 +536,18 @@ class ReminderActivity : ComponentActivity() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
         ) {
-            Text("TEST REMINDER", style = MaterialTheme.typography.labelLarge, color = Palette.Marigold)
+            val p = LocalPrahar.current
+            Text("TEST REMINDER", style = MaterialTheme.typography.labelLarge.copy(letterSpacing = 2.sp), color = p.glow)
             Box(Modifier.size(260.dp), contentAlignment = Alignment.Center) {
-                Pulse(Palette.Marigold)
-                SoundBars(Palette.Marigold)
+                Pulse(p.glow)
+                SoundBars(p.glow)
             }
             Text("Can you hear me clearly?", style = MaterialTheme.typography.headlineLarge, color = Color.White, textAlign = TextAlign.Center)
             Text(TuneSynth.byId(prefs.tuneId).title, style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.7f))
             BigButton(
                 if (speaking || !heard) "Stop test" else "Close",
                 onClick = { AlarmService.stop(this@ReminderActivity); finish() },
-                container = Palette.Marigold, content = Color(0xFF2A1B00),
+                container = LocalPrahar.current.glow, content = LocalPrahar.current.deepA,
                 modifier = Modifier.fillMaxWidth()
             )
         }

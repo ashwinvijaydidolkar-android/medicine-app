@@ -2,6 +2,10 @@
 
 package com.ragini.medreminder.ui.screens
 
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Add
+import com.ragini.medreminder.ui.theme.Slots
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -11,7 +15,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -74,6 +80,7 @@ import com.ragini.medreminder.ui.components.BigOutlinedButton
 import com.ragini.medreminder.ui.components.ChoicePill
 import com.ragini.medreminder.ui.components.Eyebrow
 import com.ragini.medreminder.ui.components.Segmented
+import com.ragini.medreminder.ui.theme.Prahars
 import com.ragini.medreminder.ui.components.SoftCard
 import com.ragini.medreminder.ui.components.Stepper
 import com.ragini.medreminder.ui.theme.StatusColors
@@ -280,8 +287,23 @@ fun SettingsScreen(model: AppModel, onClose: () -> Unit) {
                     Eyebrow("Colours")
                     Segmented(listOf(0, 1, 2), model.themeMode, { model.updateTheme(it) },
                         label = { when (it) { 1 -> "Light"; 2 -> "Dark"; else -> "Like phone" } })
+                    Eyebrow("Sky")
+                    Text(
+                        "Ragini's colours change through the day – orange at dawn, sky blue at noon, rose at dusk, indigo at night. Or keep one you love.",
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ChoicePill("Follow the sky", model.sky == "live", { model.updateSky("live") })
+                        Prahars.dayOrder.forEach { p ->
+                            ChoicePill(p.label, model.sky == p.key, { model.updateSky(p.key) }, leading = {
+                                Box(Modifier.size(14.dp).clip(CircleShape).background(p.accent))
+                            })
+                        }
+                    }
                 }
             }
+
+            TimesOfDayCard(model)
 
             SoftCard {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -414,6 +436,63 @@ fun ReliabilityCard(model: AppModel) {
                     }
                 }
             }
+        }
+    }
+}
+
+
+/** The user names their own times of day and chooses when each one starts. */
+@Composable
+private fun TimesOfDayCard(model: AppModel) {
+    val rows = remember(model.slots) { mutableStateListOf(*model.slots.toTypedArray()) }
+    var picking by remember { mutableStateOf<Int?>(null) }
+    var note by remember { mutableStateOf<String?>(null) }
+    SoftCard {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("My times of day", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Name the parts of your day the way you think of them – \"After breakfast\", \"Before lunch\", \"Bedtime\". Each one lasts until the next one starts. Your medicines are grouped under these names.",
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            rows.forEachIndexed { i, (name, start) ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { rows[i] = it.take(24) to start },
+                        placeholder = { Text("e.g. After breakfast") },
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f)
+                    )
+                    ChoicePill(minuteLabel(start), false, { picking = i })
+                    IconButton(
+                        onClick = { if (rows.size > 1) rows.removeAt(i) else note = "Keep at least one time of day" },
+                        modifier = Modifier.size(48.dp)
+                    ) { Icon(Icons.Rounded.Delete, "Remove ${name.ifBlank { "this time of day" }}") }
+                }
+            }
+            BigOutlinedButton("Add a time of day", onClick = {
+                val used = rows.map { it.second }.toSet()
+                val start = (12 * 60 until 24 * 60 step 30).firstOrNull { it !in used } ?: 0
+                rows.add("" to start)
+            }, icon = Icons.Rounded.Add, modifier = Modifier.fillMaxWidth())
+            BigButton("Save my times", onClick = {
+                val named = rows.filter { it.first.isNotBlank() }
+                note = when {
+                    named.isEmpty() -> "Give at least one time of day a name"
+                    named.map { it.second }.toSet().size != named.size -> "Two times of day start at the same minute – change one of them"
+                    else -> { model.updateSlots(named); "Your times of day are saved" }
+                }
+            }, modifier = Modifier.fillMaxWidth())
+            TextButton(onClick = { model.updateSlots(Slots.defaults); note = "Standard times of day restored" }, modifier = Modifier.fillMaxWidth()) {
+                Text("Use the standard list", style = MaterialTheme.typography.labelLarge)
+            }
+            note?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary) }
+        }
+    }
+    picking?.let { i ->
+        TimeDialog(rows[i].second, onDismiss = { picking = null }, title = "Starts at") { m ->
+            rows[i] = rows[i].first to m; picking = null
         }
     }
 }

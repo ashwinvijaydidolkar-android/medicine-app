@@ -50,6 +50,8 @@ class AppModel(private val app: Context) {
     var onboarded by mutableStateOf(prefs.onboarded); private set
     var themeMode by mutableIntStateOf(prefs.themeMode); private set
     var textScale by mutableFloatStateOf(prefs.textScale); private set
+    var sky by mutableStateOf(prefs.sky); private set
+    var slots by mutableStateOf(com.ragini.medreminder.ui.theme.Slots.decode(prefs.slots)); private set
     var userName by mutableStateOf(prefs.userName); private set
     var defaultVoiceId by mutableStateOf(prefs.defaultVoiceId); private set
     var tuneId by mutableIntStateOf(prefs.tuneId); private set
@@ -96,6 +98,11 @@ class AppModel(private val app: Context) {
 
     fun updateName(v: String) { prefs.userName = v; userName = v.trim() }
     fun updateTheme(v: Int) { prefs.themeMode = v; themeMode = v }
+    fun updateSky(v: String) { prefs.sky = v; sky = v }
+    fun updateSlots(v: List<Pair<String, Int>>) {
+        val raw = com.ragini.medreminder.ui.theme.Slots.encode(v)
+        prefs.slots = raw; slots = com.ragini.medreminder.ui.theme.Slots.decode(raw)
+    }
     fun updateTextScale(v: Float) { prefs.textScale = v; textScale = prefs.textScale }
     fun updateDefaultVoice(id: String) { prefs.defaultVoiceId = id; defaultVoiceId = id; version++ }
     fun updateTune(id: Int) { prefs.tuneId = id; tuneId = prefs.tuneId }

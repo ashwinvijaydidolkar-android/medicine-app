@@ -111,6 +111,16 @@ class Prefs(context: Context) {
         get() = sp.getInt("themeMode", 0)
         set(v) = sp.edit().putInt("themeMode", v).apply()
 
+    /** The user's own times of day ("name|startMinute" per line). Empty = the standard list. */
+    var slots: String
+        get() = sp.getString("slots", "") ?: ""
+        set(v) = sp.edit().putString("slots", v).apply()
+
+    /** "live" = colours follow the sky (the current prahar); or a prahar key to keep one look. */
+    var sky: String
+        get() = sp.getString("sky", "live") ?: "live"
+        set(v) = sp.edit().putString("sky", v).apply()
+
     var lastFiredAt: Long
         get() = sp.getLong("lastFiredAt", 0L)
         set(v) = sp.edit().putLong("lastFiredAt", v).apply()

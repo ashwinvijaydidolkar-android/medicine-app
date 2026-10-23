@@ -79,7 +79,9 @@ import com.ragini.medreminder.ui.Reliability
 import com.ragini.medreminder.ui.components.BigButton
 import com.ragini.medreminder.ui.components.ChoicePill
 import com.ragini.medreminder.ui.components.Eyebrow
+import com.ragini.medreminder.ui.components.SkyHeader
 import com.ragini.medreminder.ui.components.SoftCard
+import com.ragini.medreminder.ui.components.bleed
 import com.ragini.medreminder.ui.components.Stepper
 import com.ragini.medreminder.ui.theme.Palette
 import com.ragini.medreminder.voice.Lang
@@ -107,7 +109,7 @@ fun moodColor(m: Mood): Color = when (m) {
 }
 
 @Composable
-fun VoicesScreen(model: AppModel) {
+fun VoicesScreen(model: AppModel, onSettings: () -> Unit = {}) {
     var lang by remember { mutableStateOf<Lang?>(null) }
     var mood by remember { mutableStateOf<Mood?>(null) }
     var recs by remember { mutableStateOf(model.prefs.recordedVoices) }
@@ -119,21 +121,17 @@ fun VoicesScreen(model: AppModel) {
     DisposableEffect(Unit) { onDispose { model.stopPreview() } }
 
     LazyColumn(
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 40.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 0.dp, bottom = 150.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Column {
-                Eyebrow("${VoiceCatalog.all.size} voices · ${Lang.entries.size} languages · 9 personalities")
-                Spacer(Modifier.height(4.dp))
-                Text("Voices", style = MaterialTheme.typography.headlineLarge)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Tap a voice to choose it – you will hear it straight away. Each medicine can also have its own voice.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            SkyHeader(
+                eyebrow = "${VoiceCatalog.all.size} voices · ${TuneSynth.all.size} tunes",
+                title = "Voices & tunes",
+                subtitle = "Tap a voice to choose it – you hear it straight away. Each medicine can also have its own voice.",
+                onSettings = onSettings,
+                modifier = Modifier.bleed(20.dp)
+            )
         }
         item { CurrentVoice(model, recs) }
         item { TuneCard(model) }

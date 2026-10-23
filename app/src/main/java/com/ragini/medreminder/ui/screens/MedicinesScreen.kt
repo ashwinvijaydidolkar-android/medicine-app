@@ -44,43 +44,32 @@ import com.ragini.medreminder.ui.AppModel
 import com.ragini.medreminder.ui.Fmt
 import com.ragini.medreminder.ui.components.Eyebrow
 import com.ragini.medreminder.ui.components.PillIcon
+import com.ragini.medreminder.ui.components.SkyHeader
 import com.ragini.medreminder.ui.components.SoftCard
+import com.ragini.medreminder.ui.components.bleed
 import com.ragini.medreminder.ui.theme.MedColors
 import com.ragini.medreminder.voice.VoiceCatalog
 
 @Composable
-fun MedicinesScreen(model: AppModel, onAdd: () -> Unit, onEdit: (Long) -> Unit) {
+fun MedicinesScreen(model: AppModel, onAdd: () -> Unit, onEdit: (Long) -> Unit, onSettings: () -> Unit = {}) {
     val meds = model.meds.sortedWith(compareBy<Medicine>({ !it.active }, { it.times.minOrNull() ?: 0 }, { it.name.lowercase() }))
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 120.dp),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 0.dp, bottom = 150.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
-                Column {
-                    Eyebrow("${meds.count { it.active }} active · ${meds.size} total")
-                    Spacer(Modifier.height(4.dp))
-                    Text("Medicines", style = MaterialTheme.typography.headlineLarge)
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "Tap a medicine to change its name, time, voice or reminder start.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                SkyHeader(
+                    eyebrow = "${meds.count { it.active }} active · ${meds.size} total",
+                    title = "Medicines",
+                    subtitle = "Tap a medicine to change its name, time, voice or reminder start.",
+                    onSettings = onSettings,
+                    modifier = Modifier.bleed(20.dp)
+                )
             }
             if (meds.isEmpty()) item { EmptyToday(onAdd) }
             items(meds, key = { it.id }) { m -> MedicineCard(model, m, onClick = { onEdit(m.id) }) }
         }
-        ExtendedFloatingActionButton(
-            onClick = onAdd,
-            icon = { Icon(Icons.Rounded.Add, null, Modifier.size(28.dp)) },
-            text = { Text("Add medicine", style = MaterialTheme.typography.labelLarge) },
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            shape = RoundedCornerShape(24.dp),
-            modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp).height(64.dp)
-        )
     }
 }
 
