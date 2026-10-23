@@ -69,6 +69,7 @@ fun MedicinesScreen(model: AppModel, onAdd: () -> Unit, onEdit: (Long) -> Unit, 
             }
             if (meds.isEmpty()) item { EmptyToday(onAdd) }
             items(meds, key = { it.id }) { m -> MedicineCard(model, m, onClick = { onEdit(m.id) }) }
+            item { MoveListCard(model) }
         }
     }
 }

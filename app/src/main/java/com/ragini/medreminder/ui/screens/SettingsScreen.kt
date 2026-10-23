@@ -305,6 +305,8 @@ fun SettingsScreen(model: AppModel, onClose: () -> Unit) {
 
             TimesOfDayCard(model)
 
+            MoveListCard(model)
+
             SoftCard {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Start fresh", style = MaterialTheme.typography.titleLarge)

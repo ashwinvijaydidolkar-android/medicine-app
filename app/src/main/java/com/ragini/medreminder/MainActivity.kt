@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.ragini.medreminder.ui.AppModel
 import com.ragini.medreminder.ui.screens.EditorScreen
+import com.ragini.medreminder.ui.screens.ImportDialogs
 import com.ragini.medreminder.ui.screens.MedicinesScreen
 import com.ragini.medreminder.ui.screens.OnboardingScreen
 import com.ragini.medreminder.ui.screens.ReportsScreen
@@ -58,6 +59,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         model = AppModel(applicationContext)
         model.refresh()
+        handleOpenedFile(intent)
         setContent {
             // The living sky: colours follow the current prahar (re-checked with every refresh).
             val prahar = androidx.compose.runtime.remember(model.now / 60_000, model.sky) { Prahars.current(model.sky) }
@@ -66,9 +68,30 @@ class MainActivity : ComponentActivity() {
               androidx.compose.runtime.CompositionLocalProvider(LocalSlots provides slots) {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     if (model.onboarded) AppShell(model) else OnboardingScreen(model)
+                    ImportDialogs(model)
                 }
               }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleOpenedFile(intent)
+    }
+
+    /** A Ragini medicine list opened from WhatsApp, e-mail, Files or Drive. */
+    private fun handleOpenedFile(i: android.content.Intent?) {
+        val uri: android.net.Uri? = when (i?.action) {
+            android.content.Intent.ACTION_VIEW -> i.data
+            android.content.Intent.ACTION_SEND ->
+                @Suppress("DEPRECATION") (i.getParcelableExtra(android.content.Intent.EXTRA_STREAM) as? android.net.Uri)
+            else -> null
+        }
+        if (uri != null) {
+            model.readImport(uri)
+            i?.action = null   // do not import again on rotation
         }
     }
 

@@ -29,11 +29,11 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build installable APK
+      - name: Test and build installable APK
         run: |
           chmod +x gradlew
           set -o pipefail
-          ./gradlew --no-daemon assembleRelease 2>&1 | tee build.log
+          ./gradlew --no-daemon testReleaseUnitTest assembleRelease 2>&1 | tee build.log
 
       - name: Rename
         run: cp app/build/outputs/apk/release/app-release.apk Ragini-MedicineReminder.apk

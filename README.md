@@ -63,6 +63,15 @@ Works on **Android 6.0 (Marshmallow) and every newer version**, on any phone bra
 - **A balanced bar.** Today · Medicines · the big **+** in the middle · Voices · Reports. Settings is the gear at the top.
 - **The reminder screen** wears the dark sky of the medicine's own time, with the time framed in an arch and one bead and one card per medicine.
 
+### Moving medicines to another device
+- **Medicines → Move medicines to another device** (also in Settings).
+  - **Send to another phone** shares one small file through WhatsApp, Bluetooth, e-mail or Drive.
+  - **Save as a file** puts it in Downloads or Google Drive.
+  - **Load a list from a file** opens one. On the other phone, tapping the file in WhatsApp and choosing *Ragini* also opens it.
+- Before anything changes, Ragini shows the medicines it found. **Add to my medicines** keeps the current list and skips medicines already there (same name and times). **Replace my whole list** asks twice.
+- The file carries the medicines, their times, schedules, food rules, stock and your times of day. Attendance history stays on the device where it happened.
+- The same file works in the **Windows app** (Medicines → *Save my list to a file* / *Load a list from a file*), so a list can move phone → PC and PC → phone.
+
 ### Made for older eyes and hands
 - Lexend typeface (designed for reading ease), extra-large text, and a text-size slider up to 150%
 - Every button is at least 64 dp tall; each "Taken" button on the reminder is 76 dp
