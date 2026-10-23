@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ivory">#FFFBF7F0</color>
+    <color name="indigo">#FF2E2A6B</color>
+    <color name="marigold">#FFF2A93B</color>
+    <color name="night">#FF121126</color>
+
+    <style name="Theme.Ragini" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/ivory</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:colorAccent">@color/indigo</item>
+    </style>
+
+    <!-- The full-screen reminder is always dark, so it never flashes white on the lock screen. -->
+    <style name="Theme.Ragini.Reminder" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/night</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:colorAccent">@color/marigold</item>
+    </style>
+</resources>

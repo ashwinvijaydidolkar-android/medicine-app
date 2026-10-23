@@ -1,0 +1,27 @@
+RAGINI MEDICINE REMINDER - READ ME FIRST
+=========================================
+
+This zip is the SOURCE CODE of the Android app. It is not a Windows program,
+so double-clicking files inside it will not start the app on a PC.
+
+To get the app onto the Android phone you need the APK file
+(Ragini-MedicineReminder.apk). Two ways to get it:
+
+A) Let Claude build it for you (easiest)
+   1. In claude.ai: Settings -> Connectors -> connect GitHub.
+   2. On github.com create a new, empty, PRIVATE repository, e.g. "ragini-app".
+   3. Tell Claude the repository name. Claude uploads the project, GitHub builds
+      it, and Claude sends you the finished APK.
+
+B) Build it yourself on this Windows PC (about 20 minutes, mostly waiting)
+   1. Install Android Studio (free): https://developer.android.com/studio
+   2. Open Android Studio once and finish the setup wizard ("Standard").
+   3. Unzip this folder (right-click the zip -> Extract All). Don't run it from inside the zip.
+   4. Double-click BUILD-APK-WINDOWS.bat
+   5. When it says DONE, Ragini-MedicineReminder.apk is in the folder.
+
+Installing on the phone
+   - Send the APK to the phone (WhatsApp to yourself, USB cable, or Google Drive).
+   - Tap it, allow "Install unknown apps" for that app when asked, tap Install.
+   - Open Ragini and follow the three setup steps, then press
+     Settings -> "Test reminder in 1 minute" and lock the phone.
