@@ -31,16 +31,25 @@ Works on **Android 6.0 (Marshmallow) and every newer version**, on any phone bra
 
    If the phone was switched off at day-end, the missing days are closed the next time it wakes up.
 
-### Reports
+### Reports – the Ragini report card
 **Yesterday · Daily · Overnight · Weekly · Monthly · Quarterly · Six-monthly · Yearly**
 
-- Attendance % and Taken % rings, plus Taken / Not taken / No-answer counts
-- Single-day reports show the **attendance register**: each dose, its status, the reason, and when it was answered (on time or late)
-- Weekly: seven day columns. Monthly to yearly: a **calendar heatmap**; tap any day for its numbers
-- By medicine, by time of day (morning/afternoon/evening/night), on-time %, usual delay, current and best **streak** of perfect days
-- Top reasons for not taking a dose
-- **Share** the report with one tap (WhatsApp, SMS, email) to family or the doctor
-- *Overnight* covers 8 PM yesterday to 8 AM today. Today's doses show as "live" until the day closes.
+Every report follows the same order, so it can be understood at a glance:
+1. **Masthead:** which report, for whom, which dates.
+2. **Verdict:** a big attendance ring in the middle, with Taken and Not taken on the left and No answer and Perfect days (or On time) on the right, then one plain sentence, e.g. "Aai answered 47 of 50 doses – 94%."
+3. **Day by day:**
+   - one coloured square per day: green all taken, amber some not taken, rose some not answered, outlined no medicines or not closed yet
+   - a week shows seven large day cards; a single day shows a timeline of that day's doses
+4. **Time of day | Reasons**, side by side.
+5. **Medicines:** one row per medicine with a bar.
+6. **Attendance register:** every dose, its answer, the reason and when it was answered.
+
+**Download or send it in three ways – they all say the same thing:**
+- **PDF:** the report card on A4 pages, ready to print or send to the doctor. On Android it opens the phone's print screen; choose *Save as PDF* or a printer.
+- **Spreadsheet (CSV, opens in Excel or Google Sheets):** the summary at the top, then by medicine, by time of day, reasons, day by day, and the full register.
+- **Text:** for WhatsApp or SMS, with coloured day squares 🟩🟨🟥.
+
+The card is drawn by one shared file (`report.js`, in `assets/report/` on Android and `ui/` on Windows), so both apps' reports are identical. *Overnight* covers 8 PM yesterday to 8 AM today. Today shows as "Live" until the day closes.
 
 ### 200 reminder tunes and chimes
 - **100 tunes from four musical traditions**, 25 each, all composed for Ragini (not copies of existing songs):
