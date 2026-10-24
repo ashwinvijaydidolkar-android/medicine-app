@@ -21,6 +21,12 @@ Works on **Android 6.0 (Marshmallow) and every newer version**, on any phone bra
 - **Follow-up reminders** after the time if there is still no answer (2 by default, 5 minutes apart).
 - Survives restarts, app updates, and time or time-zone changes (it re-registers everything).
 
+### Many medicines at the same time – every one is spoken
+- All medicines due at the same time ring together. After the tune, the voice says how many there are, then names each one on its own line ("Number 2 of 5: Metformin, 500 mg, after food"), then the closing. Nothing is skipped, however many medicines there are.
+- One voice reads the whole group. If the medicines share the same voice, that voice speaks. If their voices differ, your selected voice (Voices screen) reads every one of them.
+- Long lines are spoken as short pieces, so the speech engine never cuts a name off.
+- The round repeats until every medicine is answered. A medicine already answered is still counted, so the numbers stay the same.
+
 ### Attendance, exactly as specified
 1. The reminder rings and shows each medicine of that time as its own numbered card.
 2. On each card the user taps **Taken**, or *I can't take this one* plus a reason (pick one, or write their own; a reason is required). The music stops when the last card is answered.

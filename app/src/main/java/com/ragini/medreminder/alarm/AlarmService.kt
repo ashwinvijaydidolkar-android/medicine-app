@@ -291,12 +291,9 @@ class AlarmService : Service() {
             Chimes.play(prefs.tuneId)
             delay(700)
         }
-        val groups = listOf(RingKind.FOLLOW, RingKind.DUE, RingKind.CARE_CHECK, RingKind.PRE).flatMap { k ->
-            open.filter { it.kind == k }.groupBy { it.minutes }.values.toList()
-        }
-        for (group in groups) {
-            val first = group.first()
-            val voiceId = first.dose.medicine.voiceId ?: prefs.defaultVoiceId
+        // Every open medicine is in exactly one group, and each group is spoken in one voice (see SpeechPlan).
+        for (group in SpeechPlan.of(open, prefs.defaultVoiceId)) {
+            val voiceId = group.voiceId
             val recording = if (voiceId.startsWith("rec:")) prefs.recordedVoices.firstOrNull { it.id == voiceId } else null
             val personaId = when {
                 recording != null -> prefs.defaultVoiceId.takeUnless { it.startsWith("rec:") } ?: VoiceCatalog.fallback.id
@@ -308,10 +305,11 @@ class AlarmService : Service() {
                 speaker.playFile(recording.path)
                 delay(250)
             }
-            val kind = if (first.kind == RingKind.CARE_CHECK) RingKind.FOLLOW else first.kind
-            val meds = group.map { it.dose.medicine }.distinctBy { it.id }
-            for (part in Phrases.parts(persona, kind, first.minutes, prefs.userName, meds)) {
-                if (group.none { isOpen(it) }) break     // everything in this group was just answered
+            val kind = group.kind
+            val meds = group.meds
+            // The intro, then one line per medicine ("Number 2 of 4: …"), then the closing – each spoken on its own.
+            for (part in Phrases.parts(persona, kind, group.minutes, prefs.userName, meds)) {
+                if (group.events.none { isOpen(it) }) break     // everything in this group was just answered
                 speaker.speak(part, persona, loud = prefs.loudBoost)
                 delay(350)
             }
