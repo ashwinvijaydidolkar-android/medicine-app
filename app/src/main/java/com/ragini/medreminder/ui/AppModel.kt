@@ -126,7 +126,7 @@ class AppModel(private val app: Context) {
     }
 
     fun applyImport(replace: Boolean, useTimesOfDay: Boolean): Transfer.Result {
-        val p = pendingImport ?: return Transfer.Result(0, 0, 0)
+        val p = pendingImport ?: return Transfer.Result(0, 0)
         val r = Transfer.apply(db, p, replace)
         if (useTimesOfDay && p.slots != null) updateSlots(p.slots)
         pendingImport = null

@@ -42,11 +42,14 @@ Works on **Android 6.0 (Marshmallow) and every newer version**, on any phone bra
 - **Share** the report with one tap (WhatsApp, SMS, email) to family or the doctor
 - *Overnight* covers 8 PM yesterday to 8 AM today. Today's doses show as "live" until the day closes.
 
-### 200 melodious reminder tunes
-- **20 ragas × 10 instruments.** The first hundred, improved: Bhupali, Yaman, Bhairav, Kafi, Durga, Malkauns, Hamsadhwani, Khamaj, Bilawal and Shivranjani. One hundred new: Desh, Bageshri, Bihag, Charukeshi, Hindol, Kirwani, Madhuvanti, Jog, Abhogi and Revati. The instruments are santoor, bansuri flute, sitar, harp, music box, celesta, marimba, kalimba, vibraphone and soft piano.
-- **Composed in two phrases:** one that "asks" and one that "answers" back home to Sa, shaped to swell like a sung line. The bansuri adds kan (grace) notes.
-- **Gentle accompaniment underneath:** a softly plucked tanpura for the Indian instruments, and a soft pad, bass and broken chords for the others. Plucked strings are tuned to within 2 cents (0.02 of a semitone).
-- All 200 are synthesised on the phone, with no audio files. Tap any tune in **Voices → Reminder tune** (or Settings) and it plays straight away.
+### 200 reminder tunes and chimes
+- **100 tunes from four musical traditions**, 25 each, all composed for Ragini (not copies of existing songs):
+  - **Japan:** koto, shakuhachi flute, shamisen, music box and soft piano, in Japanese in-, yo-, Okinawan and hirajoshi scales.
+  - **Korea:** gayageum, daegeum flute, haegeum fiddle, yanggeum dulcimer and celesta, over the janggu drum.
+  - **America:** acoustic guitar, banjo, harmonica, soft piano and vibraphone. Styles: country morning, cowboy waltz, Sunday hymn, easy blues and a little march.
+  - **Britain:** Celtic harp, tin whistle, fiddle, celesta and pipe organ. Styles: English pastoral, Scottish air, country jig, old ballad and a Victorian waltz.
+- **100 chimes:** tubular bells, wind chimes, glass harmonica, singing bowl, handbells, glockenspiel, crystal bells, vibraphone, hall chime and temple bell, each in ten patterns (ding-dong, rising, cascade, clock tower, sparkle, and more).
+- Every sound is made on the device, so there are no audio files to download. The tune always finishes before the voice speaks, so medicine names are never covered by music.
 
 ### 108 voices, plus the family's own
 - **12 languages × 9 personalities = 108 voices**: English (India, US, UK, Australia), Hindi, Marathi, Gujarati, Bengali, Tamil, Telugu, Kannada, Malayalam. The personalities are Gentle Dawn, Sunny Cheer, Monsoon Calm, Doctor's Desk, Temple Bell, Raga Melody, Little Grandchild, Wise Elder and Quick Nudge. Each has its own pitch, speed, wording and chime (wind chimes, marimba, bansuri flute, temple bell, sitar…). There are no play buttons: tapping a voice selects it and plays it straight away.
@@ -68,7 +71,7 @@ Works on **Android 6.0 (Marshmallow) and every newer version**, on any phone bra
   - **Send to another phone** shares one small file through WhatsApp, Bluetooth, e-mail or Drive.
   - **Save as a file** puts it in Downloads or Google Drive.
   - **Load a list from a file** opens one. On the other phone, tapping the file in WhatsApp and choosing *Ragini* also opens it.
-- Before anything changes, Ragini shows the medicines it found. **Add to my medicines** keeps the current list and skips medicines already there (same name and times). **Replace my whole list** asks twice.
+- Before anything changes, Ragini shows the medicines it found. **Add to my medicines** keeps the current list and adds every medicine from the file – nothing is skipped, even one with the same name and times. **Replace my whole list** asks twice.
 - The file carries the medicines, their times, schedules, food rules, stock and your times of day. Attendance history stays on the device where it happened.
 - The same file works in the **Windows app** (Medicines → *Save my list to a file* / *Load a list from a file*), so a list can move phone → PC and PC → phone.
 

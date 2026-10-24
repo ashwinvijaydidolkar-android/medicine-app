@@ -70,19 +70,18 @@ object Transfer {
         return Parsed(meds, slots, o.optString("from", "another device"), on?.let { Format.day(it) } ?: "", bad)
     }
 
-    data class Result(val added: Int, val alreadyThere: Int, val removed: Int)
+    data class Result(val added: Int, val removed: Int)
 
-    /** Adds the medicines (skipping ones already on this device), or replaces the whole list. */
+    /**
+     * "Add": every medicine in the file is added to the current list – nothing is skipped, even if a
+     * medicine with the same name and times is already there. "Replace": the current list is removed first.
+     */
     fun apply(db: Db, p: Parsed, replace: Boolean): Result {
         var removed = 0
         if (replace) db.medicines().forEach { db.deleteMedicine(it.id); removed++ }
-        val existing = if (replace) emptyList() else db.medicines()
-        var added = 0; var dup = 0
-        for (m in p.meds) {
-            if (existing.any { it.name.equals(m.name, ignoreCase = true) && it.times.sorted() == m.times.sorted() }) { dup++; continue }
-            db.saveMedicine(m.copy(id = 0, createdAt = System.currentTimeMillis())); added++
-        }
-        return Result(added, dup, removed)
+        var added = 0
+        for (m in p.meds) { db.saveMedicine(m.copy(id = 0, createdAt = System.currentTimeMillis())); added++ }
+        return Result(added, removed)
     }
 
     // ------------------------------------------------------------------ mapping

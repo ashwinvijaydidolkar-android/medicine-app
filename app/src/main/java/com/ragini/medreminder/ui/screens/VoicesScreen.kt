@@ -502,24 +502,27 @@ private fun PickRow(title: String, sub: String, color: Color, on: Boolean, playi
 
 // ---------------------------------------------------------------- the 200 tunes
 
-private fun instrumentColor(i: TuneSynth.Instrument): Color = when (i) {
-    TuneSynth.Instrument.SANTOOR -> Color(0xFFD9734A)
-    TuneSynth.Instrument.BANSURI -> Color(0xFF1F9E89)
-    TuneSynth.Instrument.SITAR -> Color(0xFFB8406E)
-    TuneSynth.Instrument.HARP -> Color(0xFF9B5DE5)
-    TuneSynth.Instrument.MUSIC_BOX -> Color(0xFFE07A9A)
-    TuneSynth.Instrument.CELESTA -> Color(0xFF3A9BDC)
-    TuneSynth.Instrument.MARIMBA -> Color(0xFFF2A93B)
-    TuneSynth.Instrument.KALIMBA -> Color(0xFF6BAF3C)
-    TuneSynth.Instrument.VIBRAPHONE -> Color(0xFF5B54D6)
-    TuneSynth.Instrument.PIANO -> Color(0xFF6E6A92)
+private fun regionColor(r: TuneSynth.Region): Color = when (r) {
+    TuneSynth.Region.JAPAN -> Color(0xFFD9546E)
+    TuneSynth.Region.KOREA -> Color(0xFF3A7BD5)
+    TuneSynth.Region.AMERICA -> Color(0xFFD9734A)
+    TuneSynth.Region.BRITAIN -> Color(0xFF1F9E89)
+    TuneSynth.Region.CHIMES -> Color(0xFF9B5DE5)
 }
+
+private val regionNote = mapOf(
+    TuneSynth.Region.JAPAN to "Koto, shakuhachi flute and shamisen – Japanese scales",
+    TuneSynth.Region.KOREA to "Gayageum, daegeum flute and haegeum fiddle, with the janggu drum",
+    TuneSynth.Region.AMERICA to "Guitar, banjo and harmonica – country, hymn, blues and march",
+    TuneSynth.Region.BRITAIN to "Harp, tin whistle, fiddle and organ – pastoral, Scottish, jig and waltz",
+    TuneSynth.Region.CHIMES to "Ten chime instruments, ten patterns each"
+)
 
 @Composable
 private fun TuneCard(model: AppModel) {
     var open by remember { mutableStateOf(false) }
     val t = TuneSynth.byId(model.tuneId)
-    val c = instrumentColor(t.instrument)
+    val c = regionColor(t.region)
     SoftCard(onClick = { open = true }, padding = 18.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(56.dp).clip(CircleShape).background(c.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
@@ -530,7 +533,7 @@ private fun TuneCard(model: AppModel) {
                 Eyebrow("Reminder tune · ${TuneSynth.all.size} to choose from")
                 Text(t.title, style = MaterialTheme.typography.titleLarge)
                 Text(
-                    "Raga ${t.raga.name} – ${t.raga.mood.lowercase()}", style = MaterialTheme.typography.bodySmall,
+                    "${t.region.title} – ${t.mood.replaceFirstChar { it.lowercase() }}", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -541,11 +544,16 @@ private fun TuneCard(model: AppModel) {
     if (open) TunePickerSheet(model) { open = false }
 }
 
+/** Region (Japan, Korea, America, Britain, Chimes) → melody or chime instrument → the tunes themselves. */
 @Composable
 fun TunePickerSheet(model: AppModel, onDismiss: () -> Unit) {
     val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var raga by remember { mutableIntStateOf(model.tuneId / 10) }
-    val r = TuneSynth.ragas[raga]
+    val current = TuneSynth.byId(model.tuneId)
+    var region by remember { mutableStateOf(current.region) }
+    val inRegion = remember(region) { TuneSynth.inRegion(region) }
+    val groups = remember(region) { inRegion.map { it.group }.distinct() }
+    var group by remember(region) { mutableStateOf(if (current.region == region) current.group else groups.first()) }
+    val c = regionColor(region)
     ModalBottomSheet(onDismissRequest = { model.stopPreview(); onDismiss() }, sheetState = state) {
         LazyColumn(
             Modifier.fillMaxHeight(0.92f).navigationBarsPadding(),
@@ -556,21 +564,27 @@ fun TunePickerSheet(model: AppModel, onDismiss: () -> Unit) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Choose a reminder tune", style = MaterialTheme.typography.headlineSmall)
                     Text(
-                        "${TuneSynth.ragas.size} ragas × 10 instruments. Tap a tune to choose it – it plays straight away. Ragas marked ✦ are new.",
+                        "100 tunes from Japan, Korea, America and Britain, and 100 chimes. Tap one to choose it – it plays straight away.",
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(TuneSynth.ragas.indices.toList()) { i ->
-                        ChoicePill(TuneSynth.ragas[i].name + if (i >= 10) " ✦" else "", raga == i, { raga = i })
-                    }
+                    items(TuneSynth.regions) { r -> ChoicePill(r.title, region == r, { region = r }) }
                 }
             }
-            item { Text("Raga ${r.name} – ${r.mood.lowercase()}", style = MaterialTheme.typography.titleMedium) }
-            items(TuneSynth.all.filter { it.raga === r }, key = { it.id }) { t ->
-                PickRow(t.instrument.title, t.title, instrumentColor(t.instrument), model.tuneId == t.id, model.speakingId == "tune-${t.id}") {
+            item { Text(regionNote[region] ?: "", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            item {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(groups) { g -> ChoicePill(g, group == g, { group = g }) }
+                }
+            }
+            val list = inRegion.filter { it.group == group }
+            item { Text("$group – ${list.first().let { if (region == TuneSynth.Region.CHIMES) "${list.size} patterns" else it.mood.replaceFirstChar { ch -> ch.lowercase() } }}", style = MaterialTheme.typography.titleMedium) }
+            items(list, key = { it.id }) { t ->
+                val sub = if (region == TuneSynth.Region.CHIMES) t.mood else t.title
+                PickRow(t.variant, sub, c, model.tuneId == t.id, model.speakingId == "tune-${t.id}") {
                     model.updateTune(t.id)
                     model.previewTune(t.id)
                 }

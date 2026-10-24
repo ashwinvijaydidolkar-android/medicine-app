@@ -144,8 +144,7 @@ fun ImportDialogs(model: AppModel) {
             Text("Done", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
             Text(
                 buildString {
-                    append("${r.added} ${if (r.added == 1) "medicine was" else "medicines were"} added.")
-                    if (r.alreadyThere > 0) append(" ${r.alreadyThere} ${if (r.alreadyThere == 1) "was" else "were"} already on this phone.")
+                    append("${r.added} ${if (r.added == 1) "medicine was" else "medicines were"} added to your list.")
                     if (r.removed > 0) append(" The old list of ${r.removed} was removed.")
                     append(" Reminders are set.")
                 },

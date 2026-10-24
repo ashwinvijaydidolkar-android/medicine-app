@@ -7,7 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
-/** Plays one of the 100 reminder tunes ([TuneSynth]) on the ALARM sound channel. */
+/** Plays one of the 200 reminder tunes and chimes ([TuneSynth]) on the ALARM sound channel. */
 object Chimes {
     private val cache = HashMap<Int, ShortArray>()
 
