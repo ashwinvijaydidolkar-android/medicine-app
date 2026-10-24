@@ -64,10 +64,7 @@ object Fmt {
 
     /** The exact moments the voice will speak for a dose at [minute], e.g. 7:41 … 7:59, 8:00. */
     fun rhythm(minute: Int, lead: Int, prefs: Prefs): String {
-        val gap = prefs.gapMinutes.coerceAtLeast(1)
-        val pre = ArrayList<Int>()
-        var m = lead
-        while (m > 0) { pre += minute - m; m -= gap }
+        val pre = com.ragini.medreminder.schedule.Doses.earlyMinutes(lead, prefs.preCount).map { minute - it }
         val norm = { x: Int -> ((x % 1440) + 1440) % 1440 }
         val parts = ArrayList<String>()
         if (pre.isNotEmpty()) {

@@ -118,7 +118,7 @@ private fun MedicineCard(model: AppModel, m: Medicine, onClick: () -> Unit) {
                 Icon(Icons.AutoMirrored.Rounded.VolumeUp, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    "$voice · from $lead min before, every ${model.prefs.gapMinutes} min",
+                    "$voice · ${com.ragini.medreminder.schedule.Doses.earlyMinutes(lead, model.prefs.preCount).size} reminders in the $lead min before",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

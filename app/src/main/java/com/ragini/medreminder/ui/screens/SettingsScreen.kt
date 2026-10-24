@@ -2,6 +2,8 @@
 
 package com.ragini.medreminder.ui.screens
 
+import androidx.compose.material3.RadioButton
+import androidx.compose.foundation.border
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Add
@@ -97,7 +99,7 @@ fun SettingsScreen(model: AppModel, onClose: () -> Unit) {
     val p = model.prefs
     var name by remember { mutableStateOf(p.userName) }
     var lead by remember { mutableIntStateOf(p.leadMinutes) }
-    var gap by remember { mutableIntStateOf(p.gapMinutes) }
+    var count by remember { mutableIntStateOf(p.preCount) }
     var follow by remember { mutableIntStateOf(p.followUps) }
     var followGap by remember { mutableIntStateOf(p.followGapMinutes) }
     var loud by remember { mutableStateOf(p.loudBoost) }
@@ -179,17 +181,15 @@ fun SettingsScreen(model: AppModel, onClose: () -> Unit) {
                     SettingStepper("Start reminding", "minutes before each medicine", lead, 0..60, { "$it min" }) {
                         lead = it; p.leadMinutes = it; model.rhythmChanged()
                     }
-                    SettingStepper("Remind every", "minutes until it is time", gap, 1..10, { "$it min" }) {
-                        gap = it; p.gapMinutes = it; model.rhythmChanged()
+                    SettingStepper("How many reminders", "before each medicine", count, 0..20, { "$it" }) {
+                        count = it; p.preCount = it; model.rhythmChanged()
                     }
-                    val count = if (lead <= 0) 0 else (lead + gap - 1) / gap
-                    RhythmStrip(lead, gap)
+                    val marks = com.ragini.medreminder.schedule.Doses.earlyMinutes(lead, count)
+                    RhythmStrip(lead, marks)
                     Text(
-                        "$count spoken reminders before the time, then the main reminder at the exact minute.",
-                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        "At medicine time the tune and the voice repeat – with no time limit – until every medicine is answered with Taken (or Not taken with a reason).",
+                        if (marks.isEmpty()) "No reminders before the time – only the main reminder at the exact minute."
+                        else "${marks.size} spoken ${if (marks.size == 1) "reminder" else "reminders"} at ${marks.joinToString(", ")} ${if (marks.size == 1 && marks[0] == 1) "minute" else "minutes"} before, then the main reminder at the exact minute." +
+                            (if (count > lead && lead > 0) " (At most one reminder per minute.)" else ""),
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     SettingStepper("Extra reminders after", "if there is still no answer", follow, 0..6, { "$it" }) {
@@ -202,6 +202,8 @@ fun SettingsScreen(model: AppModel, onClose: () -> Unit) {
                     }
                 }
             }
+
+            FinishCard(model)
 
             SoftCard {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -378,11 +380,7 @@ private fun SwitchRow(icon: ImageVector?, title: String, sub: String, on: Boolea
 
 /** A row of dots showing exactly when the voice will speak: –19, –17 … –1, then the dose. */
 @Composable
-private fun RhythmStrip(lead: Int, gap: Int) {
-    val marks = buildList {
-        var m = lead
-        while (m > 0) { add(m); m -= gap }
-    }
+private fun RhythmStrip(lead: Int, marks: List<Int>) {
     val cs = MaterialTheme.colorScheme
     androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(36.dp)) {
         val pad = 10.dp.toPx()
@@ -495,6 +493,67 @@ private fun TimesOfDayCard(model: AppModel) {
     picking?.let { i ->
         TimeDialog(rows[i].second, onDismiss = { picking = null }, title = "Starts at") { m ->
             rows[i] = rows[i].first to m; picking = null
+        }
+    }
+}
+
+
+/**
+ * "When a medicine is due, Ragini should…" – wait for Taken, just remind, or ask "Yes or Not yet" –
+ * and "Keep reminding for" 1–60 minutes (or until answered). When the time is up the dose is noted as Reminded.
+ */
+@Composable
+private fun FinishCard(model: AppModel) {
+    val p = model.prefs
+    var mode by remember { mutableIntStateOf(p.finishMode) }
+    var limit by remember { mutableIntStateOf(p.remindForMinutes) }
+    val askMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    SoftCard {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("When a medicine is due", style = MaterialTheme.typography.titleLarge)
+            listOf(
+                Triple(0, "Wait for Taken", "The reminder repeats until Taken or Not taken is tapped."),
+                Triple(1, "Just remind me – no tap needed", "Ragini reminds, then notes the dose as Reminded."),
+                Triple(2, "Ask me: Yes or Not yet", "After the names, Ragini asks and listens. Yes = Taken. Not yet = again in a minute.")
+            ).forEach { (k, title, sub) ->
+                val on = mode == k
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
+                        .background(if (on) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
+                        .border(1.5.dp, if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp))
+                        .clickable {
+                            mode = k; p.finishMode = k
+                            if (k != 0 && limit == 0) { limit = 10; p.remindForMinutes = 10 }
+                            if (k == 2 && androidx.core.content.ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) askMic.launch(Manifest.permission.RECORD_AUDIO)
+                        }
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(selected = on, onClick = null)
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(title, style = MaterialTheme.typography.titleMedium)
+                        Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+            Text("Keep reminding for", style = MaterialTheme.typography.titleMedium)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (mode == 0) ChoicePill("Until answered", limit == 0, { limit = 0; p.remindForMinutes = 0 })
+                listOf(1, 2, 3, 5, 10, 15, 20, 30, 45, 60).forEach { m ->
+                    ChoicePill("$m min", limit == m, { limit = m; p.remindForMinutes = m })
+                }
+            }
+            Text(
+                when {
+                    limit == 0 -> "At medicine time the tune and the voice repeat, with no time limit, until every medicine is answered."
+                    mode == 0 -> "At medicine time the reminder repeats for $limit ${if (limit == 1) "minute" else "minutes"}. If nothing is tapped by then, it stops and the dose is noted as Reminded."
+                    mode == 1 -> "At medicine time the reminder repeats for $limit ${if (limit == 1) "minute" else "minutes"}, then stops by itself and the dose is noted as Reminded. Tapping Taken is still possible."
+                    else -> "Ragini asks after each round, for up to $limit ${if (limit == 1) "minute" else "minutes"}. With no answer, the dose is noted as Reminded."
+                },
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

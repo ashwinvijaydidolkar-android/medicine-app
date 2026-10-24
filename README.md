@@ -9,17 +9,32 @@ Works on **Android 6.0 (Marshmallow) and every newer version**, on any phone bra
 ## What it does
 
 ### Reminders that cannot be missed
-- **Starts 19 minutes before** each medicine and speaks **every 2 minutes**: at 19, 17, 15, 13, 11, 9, 7, 5, 3 and 1 minute before.
-- **At medicine time it does not stop until every medicine is answered.** The chosen tune plays, then the voice reads each medicine **one by one** ("Number 1: Metformin, 500 mg, with food. Number 2: …"). Tune and voice repeat, reading only the medicines still left, until each one has been tapped **Taken** (or *Not taken* with a reason). There is no other way to silence a due medicine, and **there is no time limit**: the phone stays awake and keeps ringing until the last medicine is answered.
+- **Starts 19 minutes before** each medicine and, by default, speaks **10 times** – at 19, 17, 15, 13, 11, 9, 7, 5, 3 and 1 minute before. You choose both: *Start reminding* (0–60 min before) and *How many reminders* (0–20); Ragini spreads them evenly, e.g. 20 min and 5 reminders → 20, 15, 11, 6, 1 minutes before.
+- **At medicine time it does not stop until every medicine is answered.** The chosen tune plays, then the voice reads each medicine **one by one** ("Number 1: Metformin, 500 mg, with food. Number 2: …"). Tune and voice repeat, reading only the medicines still left. How it finishes is your choice – see *When a medicine is due* below.
 - **Each medicine is its own spoken message.** The opening line, every medicine, and the closing line are spoken separately with short pauses, so even a list of 30 medicines is never cut off. The music always finishes before the voice starts, so names are never covered by the tune.
 - **Clear, loud words.** The message is always the plain sentence "It is time to take your medicine(s)", followed by each name, dose and food rule. Speech is kept to a clear pitch and an unhurried speed. The words are rendered to audio first and played through Android's loudness enhancer, which has a built-in limiter, so they are louder than normal text-to-speech without distorting.
-- Both numbers can be changed: the start time for each medicine separately, and the gap for all medicines (Settings → Reminder rhythm).
+- Settings → Reminder rhythm shows exactly which minutes you will hear. The start time can also be set for each medicine separately.
 - **Fully automatic.** Nobody has to press anything to hear a reminder.
 - **Loud and clear on standby.** It uses Android's alarm-clock mechanism (`setAlarmClock`), so Doze and battery saving can't delay it. Sound plays on the **alarm channel**, so it's heard even in silent mode. The alarm volume is raised to maximum while speaking and put back afterwards. A wake lock keeps the phone awake. The screen turns on and a full-screen reminder appears over the lock screen.
 - **Any battery level.** Alarm-clock scheduling works in battery saver too. When the battery is at 20% or less, the reminder also says "Please put the phone on charge". At 15% it texts the family member once a day (if the family alert is on).
 - Optional extras for someone who is away from the phone or hard of hearing: a strong **vibration** pattern, a musical **chime** before the voice, and **torch blinking**.
 - **Follow-up reminders** after the time if there is still no answer (2 by default, 5 minutes apart).
 - Survives restarts, app updates, and time or time-zone changes (it re-registers everything).
+
+### When a medicine is due – you choose how it ends
+Settings → **When a medicine is due** has three choices:
+
+| Choice | What happens | Saved as |
+|---|---|---|
+| **Wait for Taken** (default) | Rings until each medicine is tapped *Taken* or *Not taken*. You can also give it a time limit. | Taken / Not taken |
+| **Just remind me – no tap needed** | Ragini reads out the medicines for the minutes you choose, then stops by itself. A reminder is enough. | **Reminded** |
+| **Ask me: Yes or Not yet** | After reading the names, Ragini asks "Have you taken all N medicines? Please say yes, or not yet" and listens. **Yes** = Taken. **Not yet** = asks again in a minute. Big Yes / Not yet buttons are on screen too. | Taken, or **Reminded** if no answer in time |
+
+**Keep reminding for:** 1, 2, 3, 5, 10, 15, 20, 30, 45 or 60 minutes after the medicine time (or *until answered* with Wait for Taken). When the time is up, any medicine not answered is noted as **Reminded** and the reminder closes itself.
+
+**Reminded** is its own colour (blue) on the Today screen, the Sun Path dome, the bead row and in every report, PDF, spreadsheet and text. It counts as attended, not missed. You can still tap *Taken* in any mode.
+
+Voice answers use the phone's own speech recogniser (Android) or Windows' built-in recogniser, with the microphone. English, Hindi and Marathi words for yes / not yet are understood.
 
 ### Many medicines at the same time – every one is spoken
 - All medicines due at the same time ring together. After the tune, the voice says how many there are, then names each one on its own line ("Number 2 of 5: Metformin, 500 mg, after food"), then the closing. Nothing is skipped, however many medicines there are.
@@ -33,6 +48,7 @@ Works on **Android 6.0 (Marshmallow) and every newer version**, on any phone bra
 3. Answers are saved straight away, but **attendance is written only at the end of the day** (11:59 PM by default; can be 10 PM, 11 PM or 11:30 PM).
    - Taken → **present** (taken)
    - Not taken + reason → **present** (not taken; the reason is kept)
+   - Reminded (Just remind me, or no voice answer in time) → **present** (reminded)
    - No answer → **absent**
 
    If the phone was switched off at day-end, the missing days are closed the next time it wakes up.

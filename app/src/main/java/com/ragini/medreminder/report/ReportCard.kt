@@ -22,7 +22,7 @@ object ReportCard {
     }
 
     private fun status(s: DoseStatus) = when (s) {
-        DoseStatus.TAKEN -> "taken"; DoseStatus.NOT_TAKEN -> "not"; DoseStatus.MISSED -> "missed"; DoseStatus.PENDING -> "pending"
+        DoseStatus.TAKEN -> "taken"; DoseStatus.NOT_TAKEN -> "not"; DoseStatus.MISSED -> "missed"; DoseStatus.PENDING -> "pending"; DoseStatus.REMINDED -> "reminded"
     }
 
     fun json(r: Report, person: String, slots: List<Pair<String, Int>>, madeAt: Long = System.currentTimeMillis()): String {

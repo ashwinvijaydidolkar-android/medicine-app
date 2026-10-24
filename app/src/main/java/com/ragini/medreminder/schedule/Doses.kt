@@ -81,19 +81,26 @@ object Doses {
     }
 
     /**
+     * When the early reminders come: [count] reminders spread evenly over the last [lead] minutes,
+     * from [lead] minutes before down to 1 minute before. E.g. 19 min and 10 reminders → 19, 17, … 3, 1;
+     * 20 min and 5 reminders → 20, 15, 11, 6, 1. Never more reminders than minutes.
+     */
+    fun earlyMinutes(lead: Int, count: Int): List<Int> {
+        if (lead <= 0 || count <= 0) return emptyList()
+        val n = minOf(count, lead)
+        if (n == 1) return listOf(lead)
+        return (0 until n).map { i -> Math.round(lead - i * (lead - 1).toDouble() / (n - 1)).toInt() }.distinct()
+    }
+
+    /**
      * The reminder rhythm for one dose. With the defaults (start 19 min before, every 2 min) this is:
      * 19, 17, 15, 13, 11, 9, 7, 5, 3, 1 minutes before, then at the exact time,
      * then follow-ups after the time if the dose has still not been answered.
      */
     fun ringEvents(d: Dose, prefs: Prefs): List<RingEvent> {
         val lead = d.medicine.leadMinutes ?: prefs.leadMinutes
-        val gap = prefs.gapMinutes.coerceAtLeast(1)
         val out = ArrayList<RingEvent>()
-        var m = lead
-        while (m > 0) {
-            out.add(RingEvent(d.at - m * 60_000L, d, RingKind.PRE, m))
-            m -= gap
-        }
+        for (m in earlyMinutes(lead, prefs.preCount)) out.add(RingEvent(d.at - m * 60_000L, d, RingKind.PRE, m))
         out.add(RingEvent(d.at, d, RingKind.DUE, 0))
         val fg = prefs.followGapMinutes
         for (i in 1..prefs.followUps) {

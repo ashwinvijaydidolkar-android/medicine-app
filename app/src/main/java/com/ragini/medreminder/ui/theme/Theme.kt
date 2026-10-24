@@ -51,6 +51,9 @@ object StatusColors {
     val Missed = Color(0xFFB8406E)
     val MissedDark = Color(0xFFD65A8C)
 
+    val Reminded = Color(0xFF3A6FD0)
+    val RemindedDark = Color(0xFF7FA6F0)
+
     @Composable
     fun of(s: DoseStatus): Color {
         val dark = LocalIsDark.current
@@ -59,6 +62,7 @@ object StatusColors {
             DoseStatus.NOT_TAKEN -> if (dark) NotTakenDark else NotTaken
             DoseStatus.MISSED -> if (dark) MissedDark else Missed
             DoseStatus.PENDING -> MaterialTheme.colorScheme.outline
+            DoseStatus.REMINDED -> if (dark) RemindedDark else Reminded
         }
     }
 }

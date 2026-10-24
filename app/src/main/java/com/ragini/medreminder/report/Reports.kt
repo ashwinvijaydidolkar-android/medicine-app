@@ -39,7 +39,7 @@ data class Row(
     val respondedAt: Long?,
     val final: Boolean
 ) {
-    val attended: Boolean get() = status == DoseStatus.TAKEN || status == DoseStatus.NOT_TAKEN
+    val attended: Boolean get() = status == DoseStatus.TAKEN || status == DoseStatus.NOT_TAKEN || status == DoseStatus.REMINDED
     val onTime: Boolean get() = status == DoseStatus.TAKEN && respondedAt != null && respondedAt - scheduledAt <= 30 * 60_000L
 }
 
@@ -75,7 +75,8 @@ data class Report(
     val taken = finals.count { it.status == DoseStatus.TAKEN }
     val notTaken = finals.count { it.status == DoseStatus.NOT_TAKEN }
     val missed = finals.count { it.status == DoseStatus.MISSED }
-    val attended = taken + notTaken
+    val reminded = finals.count { it.status == DoseStatus.REMINDED }
+    val attended = taken + notTaken + reminded
     val onTime = finals.count { it.onTime }
     val provisional = rows.filter { !it.final }
 

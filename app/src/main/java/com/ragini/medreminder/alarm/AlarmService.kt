@@ -21,6 +21,7 @@ import android.os.Vibrator
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.ragini.medreminder.data.Db
+import com.ragini.medreminder.data.DoseStatus
 import com.ragini.medreminder.data.Prefs
 import com.ragini.medreminder.schedule.Answers
 import com.ragini.medreminder.schedule.RingEvent
@@ -72,6 +73,12 @@ class AlarmService : Service() {
         val ringingTest = MutableStateFlow(false)
         /** True when at least one medicine is due now (not just an early reminder). */
         val ringingUrgent = MutableStateFlow(false)
+        /** True while Ragini waits for a spoken "yes" or "not yet" – the reminder screen listens then. */
+        val listening = MutableStateFlow(false)
+        @Volatile private var heard: kotlinx.coroutines.CompletableDeferred<String?>? = null
+
+        /** The reminder screen heard (or was tapped): "yes" or "notyet". */
+        fun voiceAnswer(answer: String) { heard?.complete(answer) }
 
         @Volatile private var instance: AlarmService? = null
 
@@ -250,14 +257,23 @@ class AlarmService : Service() {
                     if (round >= prefs.repeats) break
                     speakTest(prefs)
                 } else {
-                    val open = items.filter { isOpen(it) }
+                    var open = items.filter { isOpen(it) }
+                    // "Keep reminding for N minutes": when the time is up, the dose is recorded as Reminded.
+                    val limit = prefs.remindForMinutes
+                    if (limit > 0) {
+                        val now = System.currentTimeMillis()
+                        val over = open.filter { it.kind != RingKind.PRE && now >= it.dose.at + limit * 60_000L }
+                        over.forEach { Answers.record(this@AlarmService, it.dose.key, DoseStatus.REMINDED, "Reminded") }
+                        if (over.isNotEmpty()) open = items.filter { isOpen(it) }
+                    }
                     publish(open)
                     if (open.isEmpty()) break                        // everything answered → stop
                     val urgent = open.any { it.kind != RingKind.PRE }
                     if (!urgent && round >= prefs.repeats) break     // early reminders: just a few times
-                    // A due medicine has NO time limit: this repeats until every one is answered.
+                    // With "wait for Taken" and no limit, a due medicine repeats until every one is answered.
                     acquireWake()                                    // keeps the phone awake for the next round
                     speakRound(open, prefs, round)
+                    if (urgent && prefs.finishMode == 2) askYesOrNotYet(open, prefs)
                 }
                 round++
                 delay(if (current.any { it.kind != RingKind.PRE }) 2500L else 1500L)
@@ -324,6 +340,35 @@ class AlarmService : Service() {
             delay(400)
         }
         if (round == 0) batteryCheck(prefs)
+    }
+
+    /**
+     * "Have you taken them? Please say yes, or not yet." The reminder screen listens (and shows two big
+     * buttons). Yes → every due medicine is recorded as Taken. Not yet → a quiet minute, then again.
+     */
+    private suspend fun askYesOrNotYet(open: List<RingEvent>, prefs: Prefs) {
+        val due = open.filter { it.kind != RingKind.PRE && isOpen(it) }
+        if (due.isEmpty()) return
+        val persona = resolvePersona(prefs.defaultVoiceId.takeUnless { it.startsWith("rec:") } ?: VoiceCatalog.fallback.id)
+        speaker.speak(Phrases.askTaken(persona, prefs.userName, due.map { it.dose.medicine.id }.distinct().size), persona, loud = prefs.loudBoost)
+        val wait = kotlinx.coroutines.CompletableDeferred<String?>()
+        heard = wait
+        listening.value = true
+        val answer = kotlinx.coroutines.withTimeoutOrNull(9_000L) { wait.await() }
+        listening.value = false
+        heard = null
+        when (answer) {
+            "yes" -> {
+                due.filter { isOpen(it) }.forEach { Answers.record(this, it.dose.key, DoseStatus.TAKEN, "Taken") }
+                speaker.speak(Phrases.thanksTaken(persona), persona, loud = prefs.loudBoost)
+            }
+            "notyet" -> {
+                speaker.speak(Phrases.remindAgain(persona), persona, loud = prefs.loudBoost)
+                // a quiet minute (stops early if everything is answered on the screen)
+                var waited = 0L
+                while (waited < 60_000L && due.any { isOpen(it) }) { delay(1_000L); waited += 1_000L }
+            }
+        }
     }
 
     /** If the battery is low, say so out loud – and tell the family once a day – so reminders never stop. */

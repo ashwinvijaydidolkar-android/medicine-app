@@ -102,6 +102,7 @@ import com.ragini.medreminder.ui.components.TurningMandala
 import com.ragini.medreminder.ui.components.jharokha
 import com.ragini.medreminder.ui.theme.RaginiTheme
 import com.ragini.medreminder.ui.theme.StatusColors
+import com.ragini.medreminder.voice.Phrases
 import com.ragini.medreminder.voice.TuneSynth
 import com.ragini.medreminder.voice.VoiceCatalog
 import kotlinx.coroutines.delay
@@ -189,6 +190,13 @@ class ReminderActivity : ComponentActivity() {
             keys.forEach { k -> db.response(k)?.let { answered[k] = it.status } }
         }
         val ringing by AlarmService.ringingKeys.collectAsState()
+        val listening by AlarmService.listening.collectAsState()
+        // "Ask me: Yes or Not yet" – listen while Ragini waits for the answer.
+        LaunchedEffect(listening) { if (listening) listenForYesNo() }
+        // Answers recorded by the service (spoken "yes", or "Reminded" when the time is up) show here too.
+        LaunchedEffect(ringing) {
+            keys.forEach { k -> db.response(k)?.let { answered[k] = it.status } }
+        }
         val ringingTest by AlarmService.ringingTest.collectAsState()
         val dueNow = doses.any { it.at <= System.currentTimeMillis() + 30_000 }
         val open = doses.filter { !answered.containsKey(it.key) }
@@ -353,6 +361,8 @@ class ReminderActivity : ComponentActivity() {
                 Text(
                     when {
                         !dueNow -> "Medicine time is coming. Already taken it? Tap Taken."
+                        done == 0 && prefs.finishMode == 1 -> "Take each medicine as Ragini reads it out."
+                        done == 0 && prefs.finishMode == 2 -> "Take each medicine, then say Yes – or tap it below."
                         done == 0 -> "Take each medicine, then tap Taken. The music stops when all are answered."
                         done < total -> "$done of $total done. ${total - done} still to go."
                         else -> "All done!"
@@ -362,6 +372,8 @@ class ReminderActivity : ComponentActivity() {
                     textAlign = TextAlign.Center
                 )
             }
+
+            if (dueNow && prefs.finishMode != 0) FinishBar(prefs, doses, answered)
 
             doses.forEachIndexed { i, d ->
                 AnswerCard(i + 1, total, d, answered[d.key]) { status, reason ->
@@ -394,6 +406,74 @@ class ReminderActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    /**
+     * "Just remind me": no tap is needed – the reminder ends by itself and is recorded as Reminded.
+     * "Ask me": two big buttons for Yes / Not yet, in case the spoken answer was not understood.
+     */
+    @Composable
+    private fun FinishBar(prefs: Prefs, doses: List<Dose>, answered: MutableMap<String, DoseStatus>) {
+        val p = LocalPrahar.current
+        val open = doses.filter { !answered.containsKey(it.key) }
+        if (open.isEmpty()) return
+        val listening by AlarmService.listening.collectAsState()
+        val until = open.minOf { it.at } + prefs.remindForMinutes * 60_000L
+        val untilLabel = java.time.Instant.ofEpochMilli(until).atZone(java.time.ZoneId.systemDefault()).toLocalTime().let { minuteLabel(it.hour * 60 + it.minute) }
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Color.White.copy(alpha = 0.09f))
+                .border(1.dp, p.glow.copy(alpha = 0.5f), RoundedCornerShape(26.dp)).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (prefs.finishMode == 1) {
+                Text("No need to tap anything", style = MaterialTheme.typography.titleLarge, color = Color.White, textAlign = TextAlign.Center)
+                Text("This is just a reminder. It stops by itself at $untilLabel and is noted as Reminded. You can still tap Taken below.",
+                    style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.85f), textAlign = TextAlign.Center)
+            } else {
+                Text(if (listening) "Listening… say “Yes” or “Not yet”" else "Have you taken ${if (open.size == 1) "it" else "them"}?",
+                    style = MaterialTheme.typography.titleLarge, color = if (listening) p.glow else Color.White, textAlign = TextAlign.Center)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    BigButton("Yes", onClick = {
+                        open.forEach { d -> Answers.record(this@ReminderActivity, d.key, DoseStatus.TAKEN, "Taken"); answered[d.key] = DoseStatus.TAKEN }
+                        AlarmService.voiceAnswer("yes")
+                    }, icon = Icons.Rounded.Check, container = StatusColors.TakenDark, content = Color(0xFF00241B), height = 76.dp, modifier = Modifier.weight(1f))
+                    BigButton("Not yet", onClick = { AlarmService.voiceAnswer("notyet") },
+                        container = Color.White.copy(alpha = 0.16f), content = Color.White, height = 76.dp, modifier = Modifier.weight(1f))
+                }
+                Text("If there is no answer, the reminder stops at $untilLabel and is noted as Reminded.",
+                    style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.75f), textAlign = TextAlign.Center)
+            }
+        }
+    }
+
+    /** Listens once for "yes" / "not yet" with Android's speech recogniser (works offline on most phones). */
+    private fun listenForYesNo() {
+        if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
+        if (!android.speech.SpeechRecognizer.isRecognitionAvailable(this)) return
+        val sr = android.speech.SpeechRecognizer.createSpeechRecognizer(this)
+        val intent = Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(android.speech.RecognizerIntent.EXTRA_MAX_RESULTS, 5)
+            .putExtra(android.speech.RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            .putExtra(android.speech.RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+        fun check(b: android.os.Bundle?): Boolean {
+            val list = b?.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
+            val a = list.firstNotNullOfOrNull { Phrases.heardAnswer(it) } ?: return false
+            AlarmService.voiceAnswer(a)
+            return true
+        }
+        sr.setRecognitionListener(object : android.speech.RecognitionListener {
+            override fun onResults(results: android.os.Bundle?) { check(results); sr.destroy() }
+            override fun onPartialResults(partial: android.os.Bundle?) { if (check(partial)) { sr.cancel(); sr.destroy() } }
+            override fun onError(error: Int) { sr.destroy() }
+            override fun onReadyForSpeech(params: android.os.Bundle?) {}
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+            override fun onEvent(eventType: Int, params: android.os.Bundle?) {}
+        })
+        try { sr.startListening(intent) } catch (e: Exception) { sr.destroy() }
     }
 
     @OptIn(ExperimentalLayoutApi::class)
@@ -452,7 +532,7 @@ class ReminderActivity : ComponentActivity() {
 
             if (current != null) {
                 Text(
-                    if (current == DoseStatus.TAKEN) "Taken. Thank you!" else "Not taken – reason saved.",
+                    when (current) { DoseStatus.TAKEN -> "Taken. Thank you!"; DoseStatus.REMINDED -> "Reminded – noted."; else -> "Not taken – reason saved." },
                     style = MaterialTheme.typography.titleMedium,
                     color = ringColor
                 )

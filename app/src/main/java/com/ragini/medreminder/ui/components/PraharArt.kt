@@ -325,6 +325,7 @@ fun PraharChakra(
     val measurer = rememberTextMeasurer(cacheSize = 128)
     val notC = StatusColors.of(DoseStatus.NOT_TAKEN)
     val missC = StatusColors.of(DoseStatus.MISSED)
+    val remC = StatusColors.of(DoseStatus.REMINDED)
     // Only pulse (and so only redraw every frame) while something is actually overdue.
     val glowState: State<Float> = if (doses.any { it.overdue }) {
         rememberInfiniteTransition(label = "chakra")
@@ -402,6 +403,10 @@ fun PraharChakra(
                             moveTo(pt.x - 4.5f * u, pt.y); lineTo(pt.x - 1.3f * u, pt.y + 3.4f * u); lineTo(pt.x + 4.5f * u, pt.y - 3f * u)
                         }
                         drawPath(tick, Color.White, style = Stroke(2.2f * u, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    }
+                    DoseStatus.REMINDED -> {
+                        drawCircle(remC, radius = 9.5f * u, center = pt)
+                        drawCircle(Color.White, radius = 2.6f * u, center = pt)
                     }
                     DoseStatus.NOT_TAKEN -> {
                         drawCircle(col, radius = 9.5f * u, center = pt, style = Stroke(2.6f * u))
@@ -483,7 +488,7 @@ private fun DrawScope.arcText(
 
 // ================================================================ the mala
 
-enum class Bead { TAKEN, NOT_TAKEN, MISSED, OPEN }
+enum class Bead { TAKEN, NOT_TAKEN, MISSED, OPEN, REMINDED }
 
 /** One bead per dose on a gently curved string, with the guru bead hanging in the middle. */
 @Composable
@@ -493,6 +498,7 @@ fun Mala(beads: List<Bead>, modifier: Modifier = Modifier) {
     val not = StatusColors.of(DoseStatus.NOT_TAKEN)
     val miss = StatusColors.of(DoseStatus.MISSED)
     val accent = cs.secondary
+    val reminded = StatusColors.of(DoseStatus.REMINDED)
     Canvas(
         modifier
             .fillMaxWidth()
@@ -518,8 +524,8 @@ fun Mala(beads: List<Bead>, modifier: Modifier = Modifier) {
         val r = (if (step > 0f) step / 2.6f else 11 * u).coerceIn(6 * u, 11 * u)
         beads.forEachIndexed { i, b ->
             val p = pt(i)
-            val ring = when (b) { Bead.TAKEN -> taken; Bead.NOT_TAKEN -> not; Bead.MISSED -> miss; Bead.OPEN -> accent }
-            drawCircle(if (b == Bead.TAKEN || b == Bead.NOT_TAKEN) ring else cs.surface, radius = r, center = p)
+            val ring = when (b) { Bead.TAKEN -> taken; Bead.NOT_TAKEN -> not; Bead.MISSED -> miss; Bead.OPEN -> accent; Bead.REMINDED -> reminded }
+            drawCircle(if (b == Bead.TAKEN || b == Bead.NOT_TAKEN || b == Bead.REMINDED) ring else cs.surface, radius = r, center = p)
             drawCircle(ring, radius = r, center = p, style = Stroke(2.4f * u))
             if (b == Bead.TAKEN) {
                 val tick = Path().apply {
@@ -644,6 +650,7 @@ fun SunPath(
     val measurer = rememberTextMeasurer(cacheSize = 16)
     val notC = StatusColors.of(DoseStatus.NOT_TAKEN)
     val missC = StatusColors.of(DoseStatus.MISSED)
+    val remC = StatusColors.of(DoseStatus.REMINDED)
     val glowState: State<Float> = if (doses.any { it.overdue }) {
         rememberInfiniteTransition(label = "sunpath")
             .animateFloat(0.2f, 0.75f, infiniteRepeatable(tween(1200, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "g")
@@ -738,6 +745,10 @@ fun SunPath(
                         drawCircle(col, radius = 8.5f * u, center = p)
                         val tick = Path().apply { moveTo(p.x - 3.8f * u, p.y); relativeLineTo(2.7f * u, 2.9f * u); relativeLineTo(4.9f * u, -5.4f * u) }
                         drawPath(tick, Color.White, style = Stroke(2f * u, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    }
+                    DoseStatus.REMINDED -> {
+                        drawCircle(remC, radius = 7.8f * u, center = p)
+                        drawCircle(Color.White, radius = 2.6f * u, center = p)
                     }
                     DoseStatus.NOT_TAKEN -> {
                         drawCircle(col, radius = 7.8f * u, center = p, style = Stroke(2.3f * u))

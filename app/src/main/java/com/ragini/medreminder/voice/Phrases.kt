@@ -162,6 +162,40 @@ object Phrases {
      * @param minutes minutes before the dose (for the early reminders)
      * @param meds every medicine due at this moment – there is no limit on how many
      */
+    /** The question in "Ask me: Yes or Not yet" mode. */
+    fun askTaken(persona: VoicePersona, userName: String, n: Int): String {
+        val p = if (userName.isBlank()) "" else "${userName.trim()}, "
+        return when (persona.lang) {
+            Lang.HI -> "${p}क्या आपने ${if (n == 1) "दवा" else "सारी दवाइयाँ"} ले ली? कृपया हाँ, या अभी नहीं, बोलिए।"
+            Lang.MR -> "${p}तुम्ही ${if (n == 1) "औषध" else "सगळी औषधं"} घेतलीत का? कृपया हो, किंवा अजून नाही, म्हणा."
+            else -> cap("${p}have you taken ${if (n == 1) "your medicine" else "all $n medicines"}? Please say yes, or not yet.")
+        }
+    }
+
+    fun thanksTaken(persona: VoicePersona): String = when (persona.lang) {
+        Lang.HI -> "बहुत अच्छा। धन्यवाद।"
+        Lang.MR -> "छान. धन्यवाद."
+        else -> "Wonderful. Thank you."
+    }
+
+    fun remindAgain(persona: VoicePersona): String = when (persona.lang) {
+        Lang.HI -> "ठीक है। मैं एक मिनट में फिर याद दिलाऊँगी।"
+        Lang.MR -> "ठीक आहे. मी एका मिनिटात पुन्हा आठवण करून देईन."
+        else -> "All right. I will remind you again in a minute."
+    }
+
+    /** What the screen recognises as yes or not yet (English, Hindi, Marathi and a few common words). */
+    fun heardAnswer(text: String): String? {
+        val t = " " + text.lowercase().replace(Regex("[^\\p{L}\\p{M}\\p{N} ]"), " ") + " "
+        val notYet = listOf(" not yet ", " no ", " not ", " later ", " wait ", " nahi ", " नहीं ", " अभी नहीं ", " नाही ", " अजून नाही ", " ना ")
+        val yes = listOf(" yes ", " yeah ", " yep ", " taken ", " done ", " haan ", " han ", " ha ", " हाँ ", " हां ", " हो ", " ले ली ", " घेतली ", " ok ", " okay ")
+        return when {
+            notYet.any { t.contains(it) } -> "notyet"
+            yes.any { t.contains(it) } -> "yes"
+            else -> null
+        }
+    }
+
     fun parts(persona: VoicePersona, kind: RingKind, minutes: Int, userName: String, meds: List<Medicine>): List<String> {
         if (meds.isEmpty()) return emptyList()
         val name = userName.trim()

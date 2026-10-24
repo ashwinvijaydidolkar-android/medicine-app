@@ -26,7 +26,8 @@ const RaginiReport = (() => {
     taken: { label: 'Taken', light: '#1F8A70', dark: '#2AA07E' },
     not: { label: 'Not taken', light: '#BF7B0E', dark: '#BD821C' },
     missed: { label: 'No answer', light: '#B8406E', dark: '#D65A8C' },
-    pending: { label: 'Still to answer', light: '#8C87A0', dark: '#8C87A0' }
+    pending: { label: 'Still to answer', light: '#8C87A0', dark: '#8C87A0' },
+    reminded: { label: 'Reminded', light: '#3A6FD0', dark: '#7FA6F0' }
   };
   const MED_COLORS = ['#5B54D6', '#F2A93B', '#1F9E89', '#E0607E', '#3A9BDC', '#9B5DE5', '#6BAF3C', '#D9734A'];
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -61,30 +62,30 @@ const RaginiReport = (() => {
     const live = finals.length === 0 && rows.length > 0;           // only today, not closed yet
     const base = live ? rows : finals;
     const n = st => base.filter(r => r.status === st).length;
-    const taken = n('taken'), not = n('not'), missed = n('missed'), pending = n('pending'), total = base.length;
-    const answered = taken + not;
+    const taken = n('taken'), not = n('not'), missed = n('missed'), pending = n('pending'), reminded = n('reminded'), total = base.length;
+    const answered = taken + not + reminded;     // Reminded counts too: the reminder was given in full
     const onTime = base.filter(r => r.status === 'taken' && r.answeredAt && r.answeredAt - r.scheduledAt <= 30 * 60000).length;
     const days = [];
     for (let d = R.from; d <= R.to; d = addDays(d, 1)) {
       const l = rows.filter(r => r.day === d);
       const c = st => l.filter(r => r.status === st).length;
-      days.push({ day: d, total: l.length, taken: c('taken'), not: c('not'), missed: c('missed'), pending: c('pending'), final: l.some(r => r.final) });
+      days.push({ day: d, total: l.length, taken: c('taken'), not: c('not'), missed: c('missed'), pending: c('pending'), reminded: c('reminded'), final: l.some(r => r.final) });
     }
-    const dayState = x => !x.total ? 'none' : x.pending && !x.final ? 'live' : x.missed ? 'missed' : x.not ? 'not' : 'taken';
+    const dayState = x => !x.total ? 'none' : x.pending && !x.final ? 'live' : x.missed ? 'missed' : x.not ? 'not' : x.reminded ? 'reminded' : 'taken';
     days.forEach(x => { x.state = dayState(x); });
     const meds = {};
     for (const r of base) {
-      const k = r.name.toLowerCase(), m = meds[k] || (meds[k] = { name: r.name, color: r.color, total: 0, taken: 0, not: 0, missed: 0, pending: 0 });
+      const k = r.name.toLowerCase(), m = meds[k] || (meds[k] = { name: r.name, color: r.color, total: 0, taken: 0, not: 0, missed: 0, pending: 0, reminded: 0 });
       m.total++; m[r.status]++;
     }
-    const slots = slotsOf(R).map(s => ({ ...s, total: 0, taken: 0, not: 0, missed: 0, pending: 0 }));
+    const slots = slotsOf(R).map(s => ({ ...s, total: 0, taken: 0, not: 0, missed: 0, pending: 0, reminded: 0 }));
     for (const r of base) { const s = slotOf(r.minute, slots); s.total++; s[r.status]++; }
     const reasons = {};
     for (const r of base) if (r.status === 'not') { const k = r.reason || 'No reason given'; reasons[k] = (reasons[k] || 0) + 1; }
     const perfect = days.filter(x => x.final && x.total && x.taken === x.total).length;
     const counted = days.filter(x => x.final && x.total).length;
     return {
-      rows, live, total, taken, not, missed, pending, answered, onTime, days,
+      rows, live, total, taken, not, missed, pending, reminded, answered, onTime, days,
       attendance: pct(answered, total), takenPct: pct(taken, total), onTimePct: pct(onTime, taken),
       meds: Object.values(meds).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name)),
       slots: slots.filter(s => s.total),
@@ -97,9 +98,10 @@ const RaginiReport = (() => {
   function verdict(R, S) {
     const who = R.person || 'You';
     if (!S.total) return `No medicines were due in this period.`;
-    if (S.live) return `So far today ${S.answered} of ${S.total} ${S.total === 1 ? 'dose is' : 'doses are'} answered: ${S.taken} taken, ${S.not} not taken.${S.pending ? ` ${S.pending} still to answer.` : ' All done for now.'}`;
+    if (S.live) return `So far today ${S.answered} of ${S.total} ${S.total === 1 ? 'dose is' : 'doses are'} answered: ${S.taken} taken, ${S.not} not taken${S.reminded ? `, ${S.reminded} reminded` : ''}.${S.pending ? ` ${S.pending} still to answer.` : ' All done for now.'}`;
     const parts = [`${S.taken} taken`];
     if (S.not) parts.push(`${S.not} not taken (with a reason)`);
+    if (S.reminded) parts.push(`${S.reminded} reminded`);
     if (S.missed) parts.push(`${S.missed} with no answer`);
     return `${who} answered ${S.answered} of ${S.total} doses – ${S.attendance}%. ${parts.join(', ')}.`;
   }
@@ -112,7 +114,7 @@ const RaginiReport = (() => {
     return `
 .rp { --ink:${dark && !P ? '#EDEAF7' : '#1D1B2E'}; --muted:${dark && !P ? '#A9A3BF' : '#625C72'}; --card:${dark && !P ? '#1C1B36' : '#FFFFFF'};
   --paper:${dark && !P ? '#121126' : (P ? '#FFFFFF' : '#FBF7F0')}; --line:${dark && !P ? '#34325A' : '#E4DDD0'}; --soft:${dark && !P ? '#24223F' : '#F5F0E8'};
-  --accent:${dark && !P ? '#A39CF2' : '#4E46B4'}; --taken:${c('taken')}; --not:${c('not')}; --missed:${c('missed')}; --pending:${c('pending')};
+  --accent:${dark && !P ? '#A39CF2' : '#4E46B4'}; --taken:${c('taken')}; --not:${c('not')}; --missed:${c('missed')}; --pending:${c('pending')}; --reminded:${c('reminded')};
   font-family: Lexend, "Segoe UI", system-ui, sans-serif; color: var(--ink); background: var(--paper); line-height: 1.45; font-size: ${P ? '10.5pt' : '15px'};
   ${P ? '' : 'padding: 4px 0 120px;'} -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .rp * { box-sizing: border-box; }
@@ -134,6 +136,7 @@ const RaginiReport = (() => {
 .rp .left .tile { text-align: left; } .rp .right .tile { text-align: right; grid-template-columns: auto 1fr; }
 .rp .right .tile b { order: -1; }
 .rp .ring { width: ${P ? '150px' : '180px'}; height: ${P ? '150px' : '180px'}; }
+.rp .extra { grid-column: 1 / -1; text-align: center; margin: 0; color: var(--muted); font-size: .85em; }
 .rp .sentence { grid-column: 1 / -1; text-align: center; font-size: 1.05em; margin: 2px auto 0; max-width: 60ch; }
 .rp .sec { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin: 2px 0 8px; }
 .rp .sec::before, .rp .sec::after { content: ""; height: 1px; background: var(--line); }
@@ -209,7 +212,7 @@ ${P ? '@page { size: A4; margin: 14mm 13mm; } .rp .page { gap: 12px; } .rp .card
   const tile = (k, n, label, note) => `<div class="tile" style="--k:var(--${k})"><span>${label}</span><b>${n}</b><small>${note}</small></div>`;
 
   function daysBlock(R, S) {
-    const legend = `<div class="legend"><span><i style="--k:var(--taken)"></i>All taken</span><span><i style="--k:var(--not)"></i>Some not taken</span><span><i style="--k:var(--missed)"></i>Some not answered</span><span><i class="o"></i>No medicines / not closed yet</span></div>`;
+    const legend = `<div class="legend"><span><i style="--k:var(--taken)"></i>All taken</span><span><i style="--k:var(--not)"></i>Some not taken</span><span><i style="--k:var(--reminded)"></i>Reminded</span><span><i style="--k:var(--missed)"></i>Some not answered</span><span><i class="o"></i>No medicines / not closed yet</span></div>`;
     if (S.single) {
       // a single day (or overnight): the day's timeline
       const over = R.period === 'overnight';
@@ -220,12 +223,12 @@ ${P ? '@page { size: A4; margin: 14mm 13mm; } .rp .page { gap: 12px; } .rp .card
         <div class="timeline"><div class="axis"></div>
         ${ticks.map(([m, t], i) => `<span class="tick" style="left:${((m - lo) / (hi - lo) * 100).toFixed(2)}%;${i === 0 ? 'transform:none' : i === ticks.length - 1 ? 'transform:translateX(-100%)' : ''}">${t}</span>`).join('')}
         ${S.rows.map(r => `<span class="dot ${r.status}" style="left:${pos(r)}%;--k:var(--${r.status})" title="${esc(r.name)} ${minuteLabel(r.minute)}"></span>`).join('')}</div>
-        <div class="legend"><span><i style="--k:var(--taken)"></i>Taken</span><span><i style="--k:var(--not)"></i>Not taken</span><span><i style="--k:var(--missed)"></i>No answer</span><span><i class="o"></i>Still to answer</span></div></div>`;
+        <div class="legend"><span><i style="--k:var(--taken)"></i>Taken</span><span><i style="--k:var(--not)"></i>Not taken</span><span><i style="--k:var(--reminded)"></i>Reminded</span><span><i style="--k:var(--missed)"></i>No answer</span><span><i class="o"></i>Still to answer</span></div></div>`;
     }
     if (S.days.length <= 7) {
       return `<div class="card"><div class="sec"><h2>Day by day<small>Answered out of due</small></h2></div><div class="week">${S.days.map(x => {
         const t = parse(x.day);
-        return `<div class="day ${x.state}" style="--k:var(--${x.state === 'none' || x.state === 'live' ? 'muted' : x.state})"><small>${WD[dow(x.day)]}</small><b>${t.getDate()}</b><span class="f">${x.total ? `${x.taken + x.not}/${x.total}` : '–'}</span></div>`;
+        return `<div class="day ${x.state}" style="--k:var(--${x.state === 'none' || x.state === 'live' ? 'muted' : x.state})"><small>${WD[dow(x.day)]}</small><b>${t.getDate()}</b><span class="f">${x.total ? `${x.taken + x.not + x.reminded}/${x.total}` : '–'}</span></div>`;
       }).join('')}</div>${legend}</div>`;
     }
     // a calendar: 7 columns, Monday first
@@ -233,7 +236,7 @@ ${P ? '@page { size: A4; margin: 14mm 13mm; } .rp .page { gap: 12px; } .rp .card
     const big = S.days.length <= 31;
     const cells = Array(lead).fill('<span class="cell gap"></span>').concat(S.days.map(x => {
       const t = parse(x.day);
-      return `<span class="cell ${x.state}" style="--k:var(--${x.state})" title="${longDate(x.day)}: ${x.taken + x.not} of ${x.total} answered">${big ? t.getDate() : ''}</span>`;
+      return `<span class="cell ${x.state}" style="--k:var(--${x.state})" title="${longDate(x.day)}: ${x.taken + x.not + x.reminded} of ${x.total} answered">${big ? t.getDate() : ''}</span>`;
     }));
     const width = big ? (R.mode === 'print' ? 34 : 40) : (R.mode === 'print' ? 15 : 16);
     if (big) {
@@ -259,7 +262,7 @@ ${P ? '@page { size: A4; margin: 14mm 13mm; } .rp .page { gap: 12px; } .rp .card
 
   function stackBar(x) {
     const t = x.total || 1;
-    return `<span class="bar">${['taken', 'not', 'missed', 'pending'].map(k => x[k] ? `<i style="--k:var(--${k});width:${(x[k] / t * 100).toFixed(1)}%"></i>` : '').join('')}</span>`;
+    return `<span class="bar">${['taken', 'reminded', 'not', 'missed', 'pending'].map(k => x[k] ? `<i style="--k:var(--${k});width:${(x[k] / t * 100).toFixed(1)}%"></i>` : '').join('')}</span>`;
   }
 
   function html(R, mode = 'screen', opts = {}) {
@@ -276,10 +279,10 @@ ${P ? '@page { size: A4; margin: 14mm 13mm; } .rp .page { gap: 12px; } .rp .card
     out.push(`<section class="card verdict">
       <div class="side left">${tile('taken', S.taken, 'Taken', `${pct(S.taken, S.total)}% of doses`)}${tile('not', S.not, 'Not taken', 'with a reason – still counts as answered')}</div>
       <div class="ringbox">${ringSVG(S)}</div>
-      <div class="side right">${tile(missedK, missedN, S.live ? 'To answer' : 'No answer', `${pct(missedN, S.total)}% of doses`)}${
-        S.single ? tile('accent', S.taken ? S.onTimePct + '%' : '–', 'On time', 'taken within 30 minutes')
-        : tile('accent', S.perfect, 'Perfect days', `of ${S.counted} · streak ${R.streak ? R.streak.current : 0}, best ${R.streak ? R.streak.best : 0}`)}</div>
-      <p class="sentence">${esc(verdict(R, S))}</p></section>`);
+      <div class="side right">${tile('reminded', S.reminded, 'Reminded', 'reminder given – no tap needed')}${tile(missedK, missedN, S.live ? 'To answer' : 'No answer', `${pct(missedN, S.total)}% of doses`)}</div>
+      <p class="sentence">${esc(verdict(R, S))}</p>
+      <p class="extra">${S.single ? `On time: ${S.taken ? S.onTimePct + '%' : '–'} of taken doses within 30 minutes`
+        : `Perfect days: ${S.perfect} of ${S.counted} · streak ${R.streak ? R.streak.current : 0}, best ${R.streak ? R.streak.best : 0}`}</p></section>`);
     if (!S.total) {
       out.push(`<div class="card empty">There is nothing to show for these dates yet. Attendance is written at ${esc(R.closeLabel || '11:59 PM')} each night.</div>`);
     } else {
@@ -292,8 +295,8 @@ ${P ? '@page { size: A4; margin: 14mm 13mm; } .rp .page { gap: 12px; } .rp .card
         ${S.reasons.length ? S.reasons.map(([r, n]) => `<div class="reason"><span>${esc(r)}</span><b>×${n}</b></div>`).join('') : '<div class="empty">No dose was skipped. Well done!</div>'}</section></div>`);
       // 5. medicines
       out.push(`<section class="card"><div class="sec"><h2>Medicines<small>${S.meds.length} ${S.meds.length === 1 ? 'medicine' : 'medicines'}</small></h2></div><div class="scroll"><table>
-        <thead><tr><th>Medicine</th><th class="c">Due</th><th class="c">Taken</th><th class="c">Not taken</th><th class="c">${S.live ? 'To answer' : 'No answer'}</th><th style="width:28%">Taken</th></tr></thead><tbody>
-        ${S.meds.map(m => `<tr><td><span class="dotc" style="background:${colors[m.color % colors.length]}"></span>${esc(m.name)}</td><td class="c">${m.total}</td><td class="c">${m.taken}</td><td class="c">${m.not}</td><td class="c">${S.live ? m.pending : m.missed}</td>
+        <thead><tr><th>Medicine</th><th class="c">Due</th><th class="c">Taken</th><th class="c">Not taken</th><th class="c">Reminded</th><th class="c">${S.live ? 'To answer' : 'No answer'}</th><th style="width:26%">Taken</th></tr></thead><tbody>
+        ${S.meds.map(m => `<tr><td><span class="dotc" style="background:${colors[m.color % colors.length]}"></span>${esc(m.name)}</td><td class="c">${m.total}</td><td class="c">${m.taken}</td><td class="c">${m.not}</td><td class="c">${m.reminded}</td><td class="c">${S.live ? m.pending : m.missed}</td>
           <td><div class="brow" style="grid-template-columns:1fr auto;margin:0"><span class="mbar">${stackBar(m)}</span><span class="v">${pct(m.taken, m.total)}%</span></div></td></tr>`).join('')}
         </tbody></table></div></section>`);
       // 6. register
@@ -325,17 +328,18 @@ ${P ? '@page { size: A4; margin: 14mm 13mm; } .rp .page { gap: 12px; } .rp .card
     row(); row('SUMMARY'); row('', 'Doses', 'Share');
     row('Attendance (answered)', `${S.answered} of ${S.total}`, `${S.attendance}%`);
     row('Taken', S.taken, `${pct(S.taken, S.total)}%`); row('Not taken (with a reason)', S.not, `${pct(S.not, S.total)}%`);
+    row('Reminded (no tap needed)', S.reminded, `${pct(S.reminded, S.total)}%`);
     row(S.live ? 'Still to answer' : 'No answer', S.live ? S.pending : S.missed, `${pct(S.live ? S.pending : S.missed, S.total)}%`);
     row('Taken on time (within 30 min)', S.onTime, `${S.onTimePct}%`);
     if (!S.single) row('Perfect days', `${S.perfect} of ${S.counted}`, '');
     row('In one sentence', verdict(R, S));
-    row(); row('BY MEDICINE'); row('Medicine', 'Due', 'Taken', 'Not taken', S.live ? 'Still to answer' : 'No answer', 'Taken %');
-    S.meds.forEach(m => row(m.name, m.total, m.taken, m.not, S.live ? m.pending : m.missed, `${pct(m.taken, m.total)}%`));
-    row(); row('BY TIME OF DAY'); row('Time of day', 'Due', 'Taken', 'Not taken', S.live ? 'Still to answer' : 'No answer', 'Taken %');
-    S.slots.forEach(s => row(s.name, s.total, s.taken, s.not, S.live ? s.pending : s.missed, `${pct(s.taken, s.total)}%`));
+    row(); row('BY MEDICINE'); row('Medicine', 'Due', 'Taken', 'Not taken', 'Reminded', S.live ? 'Still to answer' : 'No answer', 'Taken %');
+    S.meds.forEach(m => row(m.name, m.total, m.taken, m.not, m.reminded, S.live ? m.pending : m.missed, `${pct(m.taken, m.total)}%`));
+    row(); row('BY TIME OF DAY'); row('Time of day', 'Due', 'Taken', 'Not taken', 'Reminded', S.live ? 'Still to answer' : 'No answer', 'Taken %');
+    S.slots.forEach(s => row(s.name, s.total, s.taken, s.not, s.reminded, S.live ? s.pending : s.missed, `${pct(s.taken, s.total)}%`));
     row(); row('REASONS FOR NOT TAKING'); row('Reason', 'Times');
     if (S.reasons.length) S.reasons.forEach(([r, n]) => row(r, n)); else row('No dose was skipped', 0);
-    if (!S.single) { row(); row('DAY BY DAY'); row('Date', 'Day', 'Due', 'Taken', 'Not taken', 'No answer', 'Answered %'); S.days.forEach(x => row(x.day, WD[dow(x.day)], x.total, x.taken, x.not, x.missed, x.total ? `${pct(x.taken + x.not, x.total)}%` : '')); }
+    if (!S.single) { row(); row('DAY BY DAY'); row('Date', 'Day', 'Due', 'Taken', 'Not taken', 'Reminded', 'No answer', 'Answered %'); S.days.forEach(x => row(x.day, WD[dow(x.day)], x.total, x.taken, x.not, x.reminded, x.missed, x.total ? `${pct(x.taken + x.not + x.reminded, x.total)}%` : '')); }
     const slots = slotsOf(R);
     row(); row('ATTENDANCE REGISTER'); row('Date', 'Day', 'Time', 'Time of day', 'Medicine', 'Answer', 'Reason', 'Answered at');
     S.rows.forEach(r => row(r.day, WD[dow(r.day)], minuteLabel(r.minute), slotOf(r.minute, slots).name, r.name, (STATUS[r.status] || STATUS.pending).label, r.status === 'not' ? r.reason : '', r.answeredAt ? stamp(r.answeredAt) : ''));
@@ -350,13 +354,13 @@ ${P ? '@page { size: A4; margin: 14mm 13mm; } .rp .page { gap: 12px; } .rp .card
     L.push('━━━━━━━━━━━━━━━━');
     if (!S.total) { L.push('No medicines were due in this period.'); return L.join('\n'); }
     L.push(`Attendance: ${S.attendance}%  (${S.answered} of ${S.total} answered)`);
-    L.push(`✅ Taken ${S.taken}   ⚠️ Not taken ${S.not}   ${S.live ? `⏳ To answer ${S.pending}` : `❌ No answer ${S.missed}`}`);
+    L.push(`✅ Taken ${S.taken}   ⚠️ Not taken ${S.not}${S.reminded ? `   🔔 Reminded ${S.reminded}` : ''}   ${S.live ? `⏳ To answer ${S.pending}` : `❌ No answer ${S.missed}`}`);
     L.push('', verdict(R, S));
     if (!S.single && S.days.length <= 31) {
       L.push('', 'Day by day:');
-      L.push(S.days.map(x => x.state === 'taken' ? '🟩' : x.state === 'not' ? '🟨' : x.state === 'missed' ? '🟥' : '⬜').join(''));
+      L.push(S.days.map(x => x.state === 'taken' ? '🟩' : x.state === 'not' ? '🟨' : x.state === 'reminded' ? '🟦' : x.state === 'missed' ? '🟥' : '⬜').join(''));
     }
-    if (S.meds.length) { L.push('', 'Medicines:'); S.meds.forEach(m => L.push(`• ${m.name}: ${m.taken}/${m.total} taken${m.not ? `, ${m.not} not taken` : ''}${!S.live && m.missed ? `, ${m.missed} no answer` : ''}`)); }
+    if (S.meds.length) { L.push('', 'Medicines:'); S.meds.forEach(m => L.push(`• ${m.name}: ${m.taken}/${m.total} taken${m.not ? `, ${m.not} not taken` : ''}${m.reminded ? `, ${m.reminded} reminded` : ''}${!S.live && m.missed ? `, ${m.missed} no answer` : ''}`)); }
     if (S.reasons.length) { L.push('', 'Reasons for not taking:'); S.reasons.forEach(([r, n]) => L.push(`• ${r} ×${n}`)); }
     L.push('━━━━━━━━━━━━━━━━', 'Sent from Ragini medicine reminder');
     return L.join('\n');

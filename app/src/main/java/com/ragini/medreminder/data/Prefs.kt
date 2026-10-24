@@ -30,6 +30,15 @@ class Prefs(context: Context) {
         set(v) = sp.edit().putInt("leadMinutes", v.coerceIn(0, 120)).apply()
 
     /** Gap between reminders, in minutes (default 2). */
+    /**
+     * How many spoken reminders come before each medicine, spread evenly over [leadMinutes].
+     * People who had "every N minutes" keep exactly the same reminders: 19 min, every 2 → 10 reminders.
+     */
+    var preCount: Int
+        get() = if (sp.contains("preCount")) sp.getInt("preCount", 10)
+                else leadMinutes.let { l -> if (l <= 0) 0 else (l + gapMinutes.coerceAtLeast(1) - 1) / gapMinutes.coerceAtLeast(1) }
+        set(v) = sp.edit().putInt("preCount", v.coerceIn(0, 20)).apply()
+
     var gapMinutes: Int
         get() = sp.getInt("gapMinutes", 2)
         set(v) = sp.edit().putInt("gapMinutes", v.coerceIn(1, 30)).apply()
@@ -44,6 +53,19 @@ class Prefs(context: Context) {
         set(v) = sp.edit().putInt("followGap", v.coerceIn(1, 30)).apply()
 
     /** How many times each reminder message is spoken. */
+    /**
+     * How a due reminder finishes: 0 = wait for Taken / Not taken, 1 = just remind (no tap needed),
+     * 2 = ask "Have you taken it? Say yes or not yet".
+     */
+    var finishMode: Int
+        get() = sp.getInt("finishMode", 0)
+        set(v) = sp.edit().putInt("finishMode", v.coerceIn(0, 2)).apply()
+
+    /** Keep reminding for this many minutes after the medicine time (1–60). 0 = until answered (only with "wait for Taken"). */
+    var remindForMinutes: Int
+        get() = sp.getInt("remindFor", 0).let { if (it == 0 && finishMode != 0) 10 else it }
+        set(v) = sp.edit().putInt("remindFor", v.coerceIn(0, 60)).apply()
+
     var repeats: Int
         get() = sp.getInt("repeats", 2)
         set(v) = sp.edit().putInt("repeats", v.coerceIn(1, 5)).apply()

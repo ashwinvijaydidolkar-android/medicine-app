@@ -279,6 +279,7 @@ private fun Tally(items: List<TodayDose>, now: Long) {
         when {
             it.status == DoseStatus.TAKEN -> Bead.TAKEN
             it.status == DoseStatus.NOT_TAKEN -> Bead.NOT_TAKEN
+            it.status == DoseStatus.REMINDED -> Bead.REMINDED
             it.isOverdue(now) -> Bead.MISSED
             else -> Bead.OPEN
         }

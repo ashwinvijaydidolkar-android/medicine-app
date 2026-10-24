@@ -60,7 +60,9 @@ enum class DoseStatus(val label: String) {
     TAKEN("Taken"),
     NOT_TAKEN("Not taken"),
     MISSED("No answer"),
-    PENDING("Upcoming")
+    PENDING("Upcoming"),
+    /** The reminder was given in full; no tap was needed (see "When a medicine is due" in Settings). */
+    REMINDED("Reminded")
 }
 
 /** What the user answered after closing a reminder. */
