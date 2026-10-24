@@ -129,7 +129,7 @@ object Reports {
         while (!d.isAfter(to)) {
             if (d !in closedDays && !db.isClosed(d)) {
                 val answers = db.responsesBetween(Doses.epochMs(d, 0), Doses.epochMs(d.plusDays(1), 0))
-                for (dose in Doses.on(meds, d)) {
+                for (dose in Doses.on(meds, d) { it in answers }) {
                     val r = answers[dose.key]
                     rows += Row(dose.key, dose.medicine.id, dose.medicine.name, dose.medicine.colorIndex, d, dose.minuteOfDay,
                         dose.at, r?.status ?: DoseStatus.PENDING, r?.reason ?: "", r?.respondedAt, final = false)

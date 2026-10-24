@@ -29,8 +29,8 @@ object DayCloser {
         val meds = db.medicines()
         while (!day.isAfter(last)) {
             if (!db.isClosed(day)) {
-                val doses = Doses.on(meds, day)
                 val answers = db.responsesBetween(Doses.epochMs(day, 0), Doses.epochMs(day.plusDays(1), 0))
+                val doses = Doses.on(meds, day) { it in answers }
                 val finals = doses.map { d ->
                     val r = answers[d.key]
                     FinalDose(

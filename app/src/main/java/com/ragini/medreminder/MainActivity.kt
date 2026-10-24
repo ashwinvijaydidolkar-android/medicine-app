@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.ragini.medreminder.ui.AppModel
 import com.ragini.medreminder.ui.screens.EditorScreen
+import com.ragini.medreminder.ui.screens.EarlierDosesDialog
 import com.ragini.medreminder.ui.screens.ImportDialogs
 import com.ragini.medreminder.ui.screens.WhatsNewDialog
 import com.ragini.medreminder.ui.screens.MedicinesScreen
@@ -71,6 +72,7 @@ class MainActivity : ComponentActivity() {
                     if (model.onboarded) AppShell(model) else OnboardingScreen(model)
                     ImportDialogs(model)
                     WhatsNewDialog(model)
+                    EarlierDosesDialog(model)
                 }
               }
             }

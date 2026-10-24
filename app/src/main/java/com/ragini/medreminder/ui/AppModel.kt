@@ -66,7 +66,7 @@ class AppModel(private val app: Context) {
         meds = db.medicines()
         val d = LocalDate.now()
         val answers = db.responsesBetween(Doses.epochMs(d, 0), Doses.epochMs(d.plusDays(1), 0))
-        today = Doses.on(meds, d).map { TodayDose(it, answers[it.key]) }
+        today = Doses.on(meds, d) { it in answers }.map { TodayDose(it, answers[it.key]) }
         next = try { AlarmScheduler.nextEvent(app) } catch (_: Exception) { null }
         version++
     }
@@ -75,7 +75,26 @@ class AppModel(private val app: Context) {
         db.saveMedicine(m)
         AlarmScheduler.scheduleNext(app)
         refresh()
+        if (m.id == 0L) checkEarlierDoses()
     }
+
+    /** Doses due earlier today, before the medicines were added: Ragini asks once whether they were taken. */
+    var earlierDoses by mutableStateOf<List<Dose>>(emptyList())
+        private set
+
+    fun checkEarlierDoses() {
+        earlierDoses = Doses.earlierToday(db.medicines(), System.currentTimeMillis(), { db.response(it) != null })
+    }
+
+    fun answerEarlier(d: Dose, status: DoseStatus, reason: String) {
+        Answers.record(app, d.key, status, reason)
+        refresh()
+    }
+
+    /** A one-line note shown above the question (e.g. how many medicines were just added). */
+    var earlierIntro by mutableStateOf<String?>(null)
+
+    fun closeEarlier() { earlierDoses = emptyList(); earlierIntro = null }
 
     fun deleteMedicine(id: Long) {
         db.deleteMedicine(id)
@@ -132,6 +151,7 @@ class AppModel(private val app: Context) {
         pendingImport = null
         AlarmScheduler.rescheduleAll(app)
         refresh()
+        checkEarlierDoses()
         return r
     }
 

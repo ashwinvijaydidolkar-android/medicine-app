@@ -41,15 +41,39 @@ object Doses {
         }
     }
 
-    /** All doses of all medicines on [day], earliest first. Doses before a medicine was added are ignored. */
-    fun on(meds: List<Medicine>, day: LocalDate): List<Dose> {
+    /**
+     * All doses of all medicines on [day], earliest first. Doses from before a medicine was added are
+     * left out – unless the user answered them in the "earlier today" check-in ([answered]).
+     */
+    fun on(meds: List<Medicine>, day: LocalDate, answered: (String) -> Boolean = { false }): List<Dose> {
         val out = ArrayList<Dose>()
         for (m in meds) {
             if (!occursOn(m, day)) continue
             for (t in m.times.distinct()) {
                 val at = epochMs(day, t)
-                if (at < m.createdAt - 60_000L) continue
-                out.add(Dose(key(m.id, day, t), m, day, t, at))
+                val k = key(m.id, day, t)
+                if (at < m.createdAt - 60_000L && !answered(k)) continue
+                out.add(Dose(k, m, day, t, at))
+            }
+        }
+        out.sortWith(compareBy<Dose>({ it.at }, { it.medicine.name.lowercase() }))
+        return out
+    }
+
+    /**
+     * Doses that were due earlier today, before their medicine was added to Ragini (a new install,
+     * an imported list or newly typed medicines). Ragini asks once whether they were taken.
+     * Only medicines added in the last [withinMs] count, so the question comes right after adding.
+     */
+    fun earlierToday(meds: List<Medicine>, now: Long, answered: (String) -> Boolean, withinMs: Long = 30 * 60_000L): List<Dose> {
+        val day = LocalDate.now()
+        val out = ArrayList<Dose>()
+        for (m in meds) {
+            if (m.createdAt < now - withinMs || !occursOn(m, day)) continue
+            for (t in m.times.distinct()) {
+                val at = epochMs(day, t)
+                val k = key(m.id, day, t)
+                if (at <= m.createdAt + 60_000L && at < now && !answered(k)) out.add(Dose(k, m, day, t, at))
             }
         }
         out.sortWith(compareBy<Dose>({ it.at }, { it.medicine.name.lowercase() }))

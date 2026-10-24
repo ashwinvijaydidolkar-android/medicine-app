@@ -87,6 +87,13 @@ fun ImportDialogs(model: AppModel) {
     var result by remember { mutableStateOf<Transfer.Result?>(null) }
     var confirmReplace by remember { mutableStateOf(false) }
     var useTimes by remember { mutableStateOf(true) }
+    // After importing: if some medicines were already due earlier today, the "earlier today" question
+    // comes next and carries the summary; otherwise a short "Done" message is shown.
+    val finish: (Transfer.Result) -> Unit = { r ->
+        if (model.earlierDoses.isEmpty()) result = r
+        else model.earlierIntro = "${r.added} ${if (r.added == 1) "medicine" else "medicines"} added" +
+            (if (r.removed > 0) ", old list of ${r.removed} removed" else "") + ". Reminders are set."
+    }
 
     model.importProblem?.let { msg ->
         Sheet(onDismiss = { model.importProblem = null }) {
@@ -126,12 +133,12 @@ fun ImportDialogs(model: AppModel) {
                     Text("Also use their times of day (" + p.slots.joinToString(", ") { it.first } + ")", style = MaterialTheme.typography.bodyMedium)
                 }
             }
-            BigButton("Add to my medicines", onClick = { result = model.applyImport(replace = false, useTimesOfDay = useTimes) }, modifier = Modifier.fillMaxWidth())
+            BigButton("Add to my medicines", onClick = { finish(model.applyImport(replace = false, useTimesOfDay = useTimes)) }, modifier = Modifier.fillMaxWidth())
             BigOutlinedButton(
                 if (confirmReplace) "Tap again: remove my list and use this one" else "Replace my whole list",
                 onClick = {
                     if (!confirmReplace) confirmReplace = true
-                    else { result = model.applyImport(replace = true, useTimesOfDay = useTimes); confirmReplace = false }
+                    else { finish(model.applyImport(replace = true, useTimesOfDay = useTimes)); confirmReplace = false }
                 },
                 color = MaterialTheme.colorScheme.error, modifier = Modifier.fillMaxWidth()
             )

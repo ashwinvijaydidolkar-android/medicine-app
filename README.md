@@ -75,6 +75,13 @@ Works on **Android 6.0 (Marshmallow) and every newer version**, on any phone bra
 - The file carries the medicines, their times, schedules, food rules, stock and your times of day. Attendance history stays on the device where it happened.
 - The same file works in the **Windows app** (Medicines → *Save my list to a file* / *Load a list from a file*), so a list can move phone → PC and PC → phone.
 
+### "Earlier today" check-in
+- Right after medicines are added to Ragini (a new install, an imported list or medicines typed in), Ragini looks for doses of those medicines that were already due earlier today, before they were added.
+- It asks about each one: **Taken**, or **Not taken** with a reason. **I took all of them** answers them all at once.
+- Answers count in Today, the reports and the attendance register exactly like answers given to a reminder.
+- **I don't remember – skip** closes the question. Skipped doses are left out of today's attendance, as before.
+- Ragini asks only once, and only about medicines added in the last 30 minutes.
+
 ### Updating the app
 - Install a new Ragini APK over the one already on the phone. Medicines, times of day, settings and attendance history are kept, and reminders are set again straight after the update.
 - Every GitHub build gets a higher version number and the same signing key, so Android always accepts it as an update. Do not uninstall first: uninstalling deletes the medicines.
