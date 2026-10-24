@@ -83,6 +83,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ragini.medreminder.data.DoseStatus
 import com.ragini.medreminder.data.FoodRule
 import com.ragini.medreminder.data.Reasons
@@ -96,7 +97,8 @@ import com.ragini.medreminder.ui.components.BigButton
 import com.ragini.medreminder.ui.components.ChakraDose
 import com.ragini.medreminder.ui.components.FramedCard
 import com.ragini.medreminder.ui.components.Mala
-import com.ragini.medreminder.ui.components.PraharChakra
+import com.ragini.medreminder.ui.components.DayBand
+import com.ragini.medreminder.ui.components.SunPath
 import com.ragini.medreminder.ui.components.PraharSection
 import com.ragini.medreminder.ui.components.SkyHeader
 import com.ragini.medreminder.ui.components.bleed
@@ -211,47 +213,58 @@ private fun DialCard(model: AppModel, items: List<TodayDose>, now: Long) {
     val next = model.next
     val t = LocalTime.now()
     val doses = items.map { ChakraDose(it.dose.minuteOfDay, it.dose.medicine.colorIndex, it.status, it.isOverdue(now)) }
+    val nowMin = t.hour * 60 + t.minute
+    val slots = LocalSlots.current
     FramedCard(Modifier.pullUp(34.dp)) {
-        PraharChakra(doses, t.hour * 60 + t.minute, Modifier.fillMaxWidth()) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                when {
-                    upcoming != null -> {
-                        val overdue = upcoming.isOverdue(now)
-                        Eyebrow(if (overdue) "WAITING FOR YOUR ANSWER" else "NEXT MEDICINE",
-                            color = if (overdue) StatusColors.of(DoseStatus.MISSED) else MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            upcoming.dose.medicine.name,
-                            style = MaterialTheme.typography.titleLarge,
-                            textAlign = TextAlign.Center,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(minuteLabel(upcoming.dose.minuteOfDay), style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary, maxLines = 1)
-                        Text(
-                            Fmt.until(upcoming.dose.at, now) + " · " + Slots.at(upcoming.dose.minuteOfDay, LocalSlots.current).name,
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center
-                        )
-                    }
-                    items.isNotEmpty() -> {
-                        Icon(Icons.Rounded.Check, null, tint = StatusColors.of(DoseStatus.TAKEN), modifier = Modifier.size(44.dp))
-                        Text("All answered", style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
-                        if (next != null) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            SunPath(doses, nowMin, Modifier.fillMaxWidth(), slots) { k ->
+                val ty = MaterialTheme.typography
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    when {
+                        upcoming != null -> {
+                            val overdue = upcoming.isOverdue(now)
                             Text(
-                                "Next: ${next.dose.medicine.name}\n${next.dose.day.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }} ${minuteLabel(next.dose.minuteOfDay)}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
+                                if (overdue) "WAITING FOR YOU" else "NEXT MEDICINE",
+                                style = ty.labelSmall.copy(fontSize = ty.labelSmall.fontSize * k * 0.85f, letterSpacing = 1.4.sp),
+                                color = if (overdue) StatusColors.of(DoseStatus.MISSED) else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                upcoming.dose.medicine.name,
+                                style = ty.titleMedium.copy(fontSize = ty.titleMedium.fontSize * k * 0.9f),
+                                textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                minuteLabel(upcoming.dose.minuteOfDay),
+                                style = ty.displaySmall.copy(fontSize = ty.displaySmall.fontSize * k * 0.82f, lineHeight = ty.displaySmall.fontSize * k * 0.9f),
+                                color = MaterialTheme.colorScheme.primary, maxLines = 1, softWrap = false
+                            )
+                            Text(
+                                Fmt.until(upcoming.dose.at, now) + " · " + Slots.at(upcoming.dose.minuteOfDay, slots).name,
+                                style = ty.bodySmall.copy(fontSize = ty.bodySmall.fontSize * k * 0.82f),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis
                             )
                         }
-                    }
-                    else -> {
-                        Text("Your day", style = MaterialTheme.typography.headlineMedium)
-                        Text("Medicines appear as beads on this wheel of the day", style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                        items.isNotEmpty() -> {
+                            Icon(Icons.Rounded.Check, null, tint = StatusColors.of(DoseStatus.TAKEN), modifier = Modifier.size(36.dp * k))
+                            Text("All answered", style = ty.titleLarge.copy(fontSize = ty.titleLarge.fontSize * k * 0.9f), textAlign = TextAlign.Center)
+                            if (next != null) Text(
+                                "Next: ${next.dose.medicine.name} · ${minuteLabel(next.dose.minuteOfDay)}",
+                                style = ty.bodySmall.copy(fontSize = ty.bodySmall.fontSize * k * 0.85f),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, maxLines = 2
+                            )
+                        }
+                        else -> {
+                            Text("Your day", style = ty.headlineSmall.copy(fontSize = ty.headlineSmall.fontSize * k * 0.9f))
+                            Text("Medicines appear as beads along the path of the sun", style = ty.bodySmall.copy(fontSize = ty.bodySmall.fontSize * k * 0.85f),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                        }
                     }
                 }
             }
+            DayBand(nowMin, { sl ->
+                val list = items.filter { sl.contains(it.dose.minuteOfDay) }
+                list.count { it.response != null } to list.size
+            }, slots)
         }
     }
 }

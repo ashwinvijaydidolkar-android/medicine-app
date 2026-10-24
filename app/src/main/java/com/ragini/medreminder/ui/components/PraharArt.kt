@@ -92,6 +92,7 @@ import com.ragini.medreminder.ui.theme.TimeSlot
 import com.ragini.medreminder.ui.theme.StatusColors
 import com.ragini.medreminder.ui.theme.YoungSerif
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
@@ -617,5 +618,179 @@ fun PraharDock(tabs: List<DockTab>, selected: Int, onSelect: (Int) -> Unit, onAd
                 .semantics { contentDescription = "Add medicines" },
             contentAlignment = Alignment.Center
         ) { Icon(Icons.Rounded.Add, null, tint = cs.onSecondary, modifier = Modifier.size(34.dp)) }
+    }
+}
+
+// ================================================================ the sun path
+
+/**
+ * The Sun Path – the day as one wide arch, from midnight on the left horizon, over noon at the top,
+ * to midnight on the right. The user's times of day are coloured bands along the arch; the sun (or the
+ * moon at night) rides it. Medicines are beads just outside the arch; doses close in time stack outwards
+ * so they never overlap. Inside the dome is the colour of the sky right now (stars at night), with room
+ * for the next medicine. Drawn on a 480 × 284 grid so it matches the Windows app exactly.
+ *
+ * [center] receives a text scale (1 = a 360 dp wide dome) so the words always fit inside the dome.
+ */
+@Composable
+fun SunPath(
+    doses: List<ChakraDose>,
+    nowMinute: Int,
+    modifier: Modifier = Modifier,
+    slots: List<TimeSlot> = LocalSlots.current,
+    center: @Composable (Float) -> Unit
+) {
+    val cs = MaterialTheme.colorScheme
+    val measurer = rememberTextMeasurer(cacheSize = 16)
+    val notC = StatusColors.of(DoseStatus.NOT_TAKEN)
+    val missC = StatusColors.of(DoseStatus.MISSED)
+    val glowState: State<Float> = if (doses.any { it.overdue }) {
+        rememberInfiniteTransition(label = "sunpath")
+            .animateFloat(0.2f, 0.75f, infiniteRepeatable(tween(1200, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "g")
+    } else remember { mutableFloatStateOf(0.5f) }
+    val nowSlot = Slots.at(nowMinute, slots)
+    val sky = Prahars.at(nowMinute)
+    val night = nowMinute < 360 || nowMinute >= 1200
+    // bead rings: doses within an hour of each other stack outwards
+    val levels = remember(doses) {
+        val placed = ArrayList<Pair<Int, Int>>()          // level, minute
+        doses.sortedBy { it.minute }.map { d ->
+            var l = 0
+            while (placed.any { it.first == l && abs(it.second - d.minute) < 58 }) l++
+            placed += l to d.minute
+            d to min(l, 3)
+        }
+    }
+
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier.aspectRatio(480f / 284f)) {
+        val scale = (maxWidth.value / 360f).coerceIn(0.75f, 1.6f)
+        Canvas(Modifier.fillMaxSize()) {
+            val u = size.width / 480f
+            val cx = 240 * u; val cy = 254 * u; val R = 168 * u; val tw = 18 * u
+            fun ang(m: Int) = PI * (1 - m / 1440.0)
+            fun pt(r: Float, m: Int) = Offset((cx + r * kotlin.math.cos(ang(m))).toFloat(), (cy - r * sin(ang(m))).toFloat())
+            // compose angles: 0° = 3 o'clock, clockwise. Minute 0 is at 180°, minute 1440 at 360°.
+            fun deg(m: Int) = 180f + m / 1440f * 180f
+            fun arc(r: Float, m0: Int, m1: Int, color: Color, width: Float, cap: StrokeCap = StrokeCap.Butt) =
+                drawArc(color, deg(m0), deg(m1) - deg(m0), false, Offset(cx - r, cy - r), Size(r * 2, r * 2), style = Stroke(width, cap = cap))
+
+            // the sky inside the dome
+            val ri = R - tw / 2 - 2 * u
+            val dome = Path().apply {
+                moveTo(cx - ri, cy)
+                arcTo(Rect(cx - ri, cy - ri, cx + ri, cy + ri), 180f, 180f, false)
+                close()
+            }
+            drawPath(dome, Brush.verticalGradient(listOf(sky.skyTop, sky.skyBottom), startY = cy - ri, endY = cy), alpha = 0.26f)
+            if (night) for (i in 0 until 18) {
+                val a = PI * (0.08 + 0.84 * ((i * 0.618) % 1))
+                val r = ri * (0.35 + 0.55 * ((i * 0.381) % 1))
+                drawCircle(cs.onSurface.copy(alpha = if (i % 3 == 0) 0.4f else 0.25f), radius = (if (i % 3 == 0) 1.6f else 1f) * u,
+                    center = Offset((cx + r * kotlin.math.cos(a)).toFloat(), (cy - r * sin(a)).toFloat()))
+            }
+            // horizon
+            drawLine(cs.outline, Offset(cx - R - 44 * u, cy), Offset(cx + R + 44 * u, cy), 1.5f * u, StrokeCap.Round)
+
+            // the user's times of day along the arch
+            slots.forEach { sl ->
+                val pieces = if (sl.end <= 1440) listOf(sl.start to sl.end) else listOf(sl.start to 1440, 0 to sl.end - 1440)
+                pieces.forEach { (m0, m1) ->
+                    if (m1 - m0 >= 6) arc(R, m0 + 3, m1 - 3, sl.palette.accent.copy(alpha = if (sl == nowSlot) 1f else 0.34f), tw)
+                }
+            }
+            // the part of the day already gone
+            if (nowMinute > 4) arc(R + tw / 2 + 4 * u, 0, nowMinute, cs.onSurface.copy(alpha = 0.28f), 1.6f * u, StrokeCap.Round)
+
+            // ticks and labels
+            for (h in 0..24 step 3) {
+                drawLine(
+                    cs.onSurfaceVariant.copy(alpha = if (h % 6 == 0) 0.75f else 0.4f),
+                    pt(R - tw / 2 - 3 * u, h * 60), pt(R - tw / 2 - (if (h % 6 == 0) 11 else 7) * u, h * 60),
+                    (if (h % 6 == 0) 1.8f else 1f) * u, StrokeCap.Round
+                )
+            }
+            val small = TextStyle(fontFamily = Lexend, fontSize = (11f * u).toSp(), color = cs.onSurfaceVariant)
+            fun label(t: String, at: Offset) {
+                val res = measurer.measure(t, small)
+                drawText(res, topLeft = Offset(at.x - res.size.width / 2f, at.y - res.size.height / 2f))
+            }
+            listOf(360 to "6 AM", 720 to "Noon", 1080 to "6 PM").forEach { (m, t) -> label(t, pt(R - tw / 2 - 24 * u, m)) }
+            label("12 AM", Offset(cx - R, cy + 16 * u)); label("12 AM", Offset(cx + R, cy + 16 * u))
+
+            // the sun (or moon) with a short ray towards the centre, like the edge of a sundial's shadow
+            drawLine(cs.onSurface.copy(alpha = 0.35f), pt(R - tw / 2 - 4 * u, nowMinute), pt(R - tw / 2 - 30 * u, nowMinute), 2f * u, StrokeCap.Round)
+            val hub = Path().apply { moveTo(cx - 9 * u, cy); arcTo(Rect(cx - 9 * u, cy - 9 * u, cx + 9 * u, cy + 9 * u), 180f, 180f, false); close() }
+            drawPath(hub, cs.onSurface.copy(alpha = 0.5f))
+            val sp = pt(R, nowMinute)
+            drawCircle((if (night) Color(0xFFC9D4FF) else Color(0xFFFFC94D)).copy(alpha = 0.4f), radius = 17 * u, center = sp)
+            drawCircle(if (night) Color(0xFFE4E8FF) else Color(0xFFFFD25E), radius = 10 * u, center = sp)
+            drawCircle(Color.White, radius = 10 * u, center = sp, style = Stroke(2.5f * u))
+            if (night) drawCircle(sky.accent, radius = 7.5f * u, center = Offset(sp.x + 4 * u, sp.y - 3 * u))
+
+            // beads
+            levels.forEach { (d, l) ->
+                val p = pt(R + tw / 2 + (16 + l * 19) * u, d.minute)
+                val col = MedColors.of(d.colorIndex)
+                if (d.overdue) drawCircle(missC.copy(alpha = glowState.value * 0.5f), radius = 14 * u, center = p)
+                drawCircle(cs.surface, radius = 10.5f * u, center = p)
+                when (d.status) {
+                    DoseStatus.TAKEN -> {
+                        drawCircle(col, radius = 8.5f * u, center = p)
+                        val tick = Path().apply { moveTo(p.x - 3.8f * u, p.y); relativeLineTo(2.7f * u, 2.9f * u); relativeLineTo(4.9f * u, -5.4f * u) }
+                        drawPath(tick, Color.White, style = Stroke(2f * u, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    }
+                    DoseStatus.NOT_TAKEN -> {
+                        drawCircle(col, radius = 7.8f * u, center = p, style = Stroke(2.3f * u))
+                        val k = 3f * u
+                        drawLine(notC, Offset(p.x - k, p.y - k), Offset(p.x + k, p.y + k), 2f * u, StrokeCap.Round)
+                        drawLine(notC, Offset(p.x + k, p.y - k), Offset(p.x - k, p.y + k), 2f * u, StrokeCap.Round)
+                    }
+                    else -> {
+                        drawCircle(col, radius = 7.8f * u, center = p, style = Stroke(2.6f * u))
+                        drawCircle(col, radius = 2.8f * u, center = p)
+                    }
+                }
+            }
+        }
+        // the words, inside the dome
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(start = maxWidth * 0.22f, end = maxWidth * 0.22f, top = maxHeight * 0.39f, bottom = maxHeight * 0.12f),
+            contentAlignment = Alignment.Center
+        ) { center(scale) }
+    }
+}
+
+/** The user's times of day as a centred row under the dome, each with how many doses are answered. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+fun DayBand(nowMinute: Int, counts: (TimeSlot) -> Pair<Int, Int>, slots: List<TimeSlot> = LocalSlots.current) {
+    val now = Slots.at(nowMinute, slots)
+    androidx.compose.foundation.layout.FlowRow(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        slots.forEach { sl ->
+            val on = sl == now
+            val (done, total) = counts(sl)
+            Row(
+                Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(if (on) sl.palette.accent else sl.palette.accent.copy(alpha = 0.12f))
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(Modifier.size(8.dp).clip(CircleShape).background(if (on) sl.palette.onAccent else sl.palette.accent))
+                Spacer(Modifier.width(6.dp))
+                Text(sl.name, style = MaterialTheme.typography.labelMedium, color = if (on) sl.palette.onAccent else MaterialTheme.colorScheme.onSurface, maxLines = 1)
+                if (total > 0) {
+                    Spacer(Modifier.width(5.dp))
+                    Text("$done/$total", style = MaterialTheme.typography.labelSmall,
+                        color = if (on) sl.palette.onAccent.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
     }
 }
